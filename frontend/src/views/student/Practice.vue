@@ -479,7 +479,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .practice-page {
   height: 100%;
   display: grid;

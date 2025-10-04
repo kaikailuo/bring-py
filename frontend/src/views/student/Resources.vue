@@ -210,7 +210,7 @@ const addToFavorites = (resource) => {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .resources-page {
   padding: $spacing-xl;
   height: 100%;
