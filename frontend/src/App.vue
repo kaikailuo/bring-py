@@ -19,6 +19,8 @@ onMounted(() => {
 <style scoped>
 #app {
   height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+
 }
 </style>
