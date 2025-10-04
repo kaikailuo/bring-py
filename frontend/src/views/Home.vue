@@ -11,6 +11,7 @@
           <a href="#features" class="nav-link">功能特色</a>
           <a href="#about" class="nav-link">关于我们</a>
           <a href="#contact" class="nav-link">联系我们</a>
+          <a href="/swipe-test" class="nav-link">滑动测试</a>
         </nav>
         <div class="auth-buttons">
           <el-button type="primary" @click="$router.push('/login')">
@@ -91,7 +92,8 @@ for i in range(10):
             </p>
           </div>
           
-          <div class="features-grid">
+          <!-- 桌面端网格布局 -->
+          <div class="features-grid desktop-only">
             <div class="feature-card education-card fade-in-up">
               <div class="feature-icon">
                 <el-icon><FolderOpened /></el-icon>
@@ -159,6 +161,37 @@ for i in range(10):
                 <li>实时在线答疑</li>
               </ul>
             </div>
+          </div>
+
+          <!-- 移动端滑动布局 -->
+          <div class="features-swipe mobile-only">
+            <SwipeContainer
+              :items="featureItems"
+              :items-per-view="1"
+              :autoplay="true"
+              :autoplay-delay="4000"
+              :show-indicators="true"
+              :show-navigation="true"
+              :loop="true"
+              :indicator-type="'bars'"
+              :show-progress="true"
+              :indicator-color="'#667eea'"
+              :indicator-size="'medium'"
+              @slide-change="onFeatureSlideChange"
+            >
+              <template #default="{ item }">
+                <div class="feature-card education-card fade-in-up">
+                  <div class="feature-icon" :class="item.iconClass">
+                    <el-icon><component :is="item.icon" /></el-icon>
+                  </div>
+                  <h3 class="feature-title">{{ item.title }}</h3>
+                  <p class="feature-description">{{ item.description }}</p>
+                  <ul class="feature-list">
+                    <li v-for="feature in item.features" :key="feature">{{ feature }}</li>
+                  </ul>
+                </div>
+              </template>
+            </SwipeContainer>
           </div>
         </div>
       </section>
@@ -271,10 +304,67 @@ for i in range(10):
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import SwipeContainer from '@/components/SwipeContainer.vue'
+
+// 功能特色数据
+const featureItems = ref([
+  {
+    title: '教学资源中心',
+    description: '丰富的Python学习资源，包括课件、视频、代码示例和交互式练习，支持智能推荐和分类管理。',
+    icon: 'FolderOpened',
+    iconClass: '',
+    features: [
+      '多格式资源支持',
+      '智能内容推荐',
+      '审核管理机制',
+      '个性化学习路径'
+    ]
+  },
+  {
+    title: 'AI编程辅助系统',
+    description: '集成人工智能技术，提供智能问答、代码调试、知识点关联等个性化学习支持服务。',
+    icon: 'Magic',
+    iconClass: 'ai-icon',
+    features: [
+      '自然语言编程问答',
+      '实时错误检测修复',
+      '知识点智能关联',
+      '学习路径推荐'
+    ]
+  },
+  {
+    title: '学情分析仪表盘',
+    description: '全方位学习数据追踪分析，帮助教师了解学生学习情况，为学生提供个性化的学习建议。',
+    icon: 'TrendCharts',
+    iconClass: 'analytics-icon',
+    features: [
+      '学习进度实时追踪',
+      '知识点掌握度分析',
+      '班级整体情况统计',
+      '考试表现预测'
+    ]
+  },
+  {
+    title: '互动交流平台',
+    description: '构建学习社区，支持学生互助、教师答疑、代码分享和小组协作学习。',
+    icon: 'ChatDotRound',
+    iconClass: 'community-icon',
+    features: [
+      '问答论坛互动',
+      '优秀作业展示',
+      '小组协作项目',
+      '实时在线答疑'
+    ]
+  }
+])
 
 const scrollToFeatures = () => {
   document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+const onFeatureSlideChange = (index) => {
+  console.log('Feature slide changed to:', index)
 }
 
 onMounted(() => {
@@ -659,6 +749,22 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* 滑动容器样式 */
+.features-swipe {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* 显示/隐藏控制 */
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .hero-content {
@@ -678,7 +784,10 @@ onMounted(() => {
     display: none;
   }
   
-  .features-grid,
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .roles-grid {
     grid-template-columns: 1fr;
   }
@@ -686,6 +795,22 @@ onMounted(() => {
   .footer-content {
     grid-template-columns: 1fr;
     text-align: center;
+  }
+  
+  /* 移动端显示滑动，桌面端显示网格 */
+  .desktop-only {
+    display: none;
+  }
+  
+  .mobile-only {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .features-swipe {
+    max-width: 100%;
+    margin: 0;
   }
 }
 </style>

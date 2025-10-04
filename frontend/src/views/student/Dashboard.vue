@@ -16,63 +16,49 @@
             <el-icon><TrendCharts /></el-icon>
             学习概览
           </h2>
-          <el-button type="primary" @click="$router.push('/student/practice')">
-            继续学习
-          </el-button>
+          <div class="section-actions">
+            <el-button-group size="small" class="view-switcher">
+              <el-button 
+                :type="currentView === 'overview' ? 'primary' : 'default'"
+                @click="switchView('overview')"
+              >
+                概览
+              </el-button>
+              <el-button 
+                :type="currentView === 'detailed' ? 'primary' : 'default'"
+                @click="switchView('detailed')"
+              >
+                详细
+              </el-button>
+              <el-button 
+                :type="currentView === 'progress' ? 'primary' : 'default'"
+                @click="switchView('progress')"
+              >
+                进度
+              </el-button>
+            </el-button-group>
+            <el-button type="primary" @click="$router.push('/student/practice')">
+              继续学习
+            </el-button>
+          </div>
         </div>
         
-        <div class="overview-cards">
-          <div class="overview-card education-card">
-            <div class="card-icon completed">
-              <el-icon><Check /></el-icon>
-            </div>
-            <div class="card-content">
-              <div class="card-title">已完成课程</div>
-              <div class="card-value">8</div>
-              <div class="card-progress">
-                <el-progress :percentage="67" :stroke-width="6" />
-              </div>
-            </div>
-          </div>
-          
-          <div class="overview-card education-card">
-            <div class="card-icon in-progress">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="card-content">
-              <div class="card-title">进行中课程</div>
-              <div class="card-value">3</div>
-              <div class="card-progress">
-                <el-progress :percentage="45" :stroke-width="6" />
-              </div>
-            </div>
-          </div>
-          
-          <div class="overview-card education-card">
-            <div class="card-icon practice">
-              <el-icon><EditPen /></el-icon>
-            </div>
-            <div class="card-content">
-              <div class="card-title">编程练习</div>
-              <div class="card-value">24</div>
-              <div class="card-progress">
-                <el-progress :percentage="80" :stroke-width="6" />
-              </div>
-            </div>
-          </div>
-          
-          <div class="overview-card education-card">
-            <div class="card-icon achievements">
-              <el-icon><Trophy /></el-icon>
-            </div>
-            <div class="card-content">
-              <div class="card-title">获得徽章</div>
-              <div class="card-value">5</div>
-              <div class="card-progress">
-                <el-progress :percentage="100" :stroke-width="6" />
-              </div>
-            </div>
-          </div>
+        <!-- 滑动视图容器 -->
+        <div class="dashboard-swipe">
+          <SwipeContainer
+            :items="dashboardViews"
+            :items-per-view="1"
+            :autoplay="false"
+            :show-indicators="false"
+            :show-navigation="false"
+            :loop="false"
+            ref="swipeRef"
+            @slide-change="onViewChange"
+          >
+            <template #default="{ item }">
+              <component :is="item.component" :data="item.data" />
+            </template>
+          </SwipeContainer>
         </div>
       </div>
 
@@ -189,11 +175,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
+import SwipeContainer from '@/components/SwipeContainer.vue'
+import OverviewView from '@/components/dashboard/OverviewView.vue'
+import DetailedView from '@/components/dashboard/DetailedView.vue'
+import ProgressView from '@/components/dashboard/ProgressView.vue'
 
 const userStore = useUserStore()
 
 // 响应式数据
 const chartPeriod = ref('week')
+const currentView = ref('overview')
+const swipeRef = ref(null)
 
 // 计算属性
 const currentDate = computed(() => {
@@ -277,7 +269,126 @@ const activities = ref([
   }
 ])
 
+// 仪表盘视图数据
+const dashboardViews = computed(() => [
+  {
+    id: 'overview',
+    component: OverviewView,
+    data: {
+      completedCourses: 8,
+      completedPercentage: 67,
+      inProgressCourses: 3,
+      inProgressPercentage: 45,
+      practiceCount: 24,
+      practicePercentage: 80,
+      achievements: 5
+    }
+  },
+  {
+    id: 'detailed',
+    component: DetailedView,
+    data: {
+      todayStudyTime: '2小时30分',
+      weekStudyTime: '12小时45分',
+      totalStudyTime: '156小时',
+      codeCompletionRate: 85,
+      exerciseAccuracy: 92,
+      knowledgeMastery: 78,
+      recentAchievements: [
+        {
+          id: 1,
+          name: 'Python新手',
+          description: '完成第一个Python程序',
+          date: '2天前',
+          icon: 'Trophy'
+        },
+        {
+          id: 2,
+          name: '代码大师',
+          description: '连续7天完成编程练习',
+          date: '1周前',
+          icon: 'Star'
+        },
+        {
+          id: 3,
+          name: '学习达人',
+          description: '完成10个学习模块',
+          date: '2周前',
+          icon: 'Medal'
+        }
+      ]
+    }
+  },
+  {
+    id: 'progress',
+    component: ProgressView,
+    data: {
+      overallProgress: 67,
+      completedModules: 8,
+      totalModules: 12,
+      weeklyProgress: [
+        { day: '周一', progress: 80, time: '2h' },
+        { day: '周二', progress: 60, time: '1.5h' },
+        { day: '周三', progress: 90, time: '2.5h' },
+        { day: '周四', progress: 45, time: '1h' },
+        { day: '周五', progress: 70, time: '1.8h' },
+        { day: '周六', progress: 0, time: '0h' },
+        { day: '周日', progress: 85, time: '2.2h' }
+      ],
+      modules: [
+        {
+          id: 1,
+          name: 'Python基础语法',
+          description: '学习Python的基本语法和数据类型',
+          progress: 100,
+          status: 'completed',
+          icon: 'Check'
+        },
+        {
+          id: 2,
+          name: '数据结构与算法',
+          description: '掌握常用的数据结构和算法思想',
+          progress: 75,
+          status: 'in-progress',
+          icon: 'Clock'
+        },
+        {
+          id: 3,
+          name: '面向对象编程',
+          description: '深入理解面向对象编程概念',
+          progress: 30,
+          status: 'in-progress',
+          icon: 'Box'
+        },
+        {
+          id: 4,
+          name: 'Web开发入门',
+          description: '学习使用Python进行Web开发',
+          progress: 0,
+          status: 'locked',
+          icon: 'Lock'
+        }
+      ]
+    }
+  }
+])
+
 // 方法
+const switchView = (view) => {
+  currentView.value = view
+  const viewIndex = dashboardViews.value.findIndex(v => v.id === view)
+  if (swipeRef.value && viewIndex !== -1) {
+    swipeRef.value.goToSlide(viewIndex)
+  }
+}
+
+const onViewChange = (index) => {
+  const view = dashboardViews.value[index]
+  if (view) {
+    currentView.value = view.id
+  }
+}
+
 const startCourse = (course) => {
   console.log('开始课程:', course.title)
   // 跳转到课程详情页面
@@ -293,7 +404,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .dashboard {
   padding: $spacing-xl;
   height: 100%;
@@ -345,6 +456,21 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: $spacing-lg;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.view-switcher {
+  border-radius: $border-radius;
+}
+
+.dashboard-swipe {
+  width: 100%;
+  min-height: 400px;
 }
 
 .section-title {
@@ -643,6 +769,17 @@ onMounted(() => {
     gap: $spacing-md;
   }
   
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-md;
+  }
+  
+  .section-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
   .overview-cards,
   .courses-grid,
   .charts-grid {
@@ -667,6 +804,22 @@ onMounted(() => {
     left: -16px;
     width: 32px;
     height: 32px;
+  }
+  
+  .dashboard-swipe {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .view-switcher {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

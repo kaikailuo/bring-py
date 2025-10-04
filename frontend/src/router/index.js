@@ -19,6 +19,12 @@ const routes = [
     meta: { title: '登录', hideForAuth: true }
   },
   {
+    path: '/swipe-test',
+    name: 'SwipeTest',
+    component: () => import('@/views/SwipeTest.vue'),
+    meta: { title: '滑动功能测试' }
+  },
+  {
     path: '/student',
     name: 'Student',
     component: () => import('@/views/student/Layout.vue'),

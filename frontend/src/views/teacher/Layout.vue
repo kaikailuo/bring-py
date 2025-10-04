@@ -404,7 +404,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .teacher-layout {
   height: 100vh;
   display: flex;

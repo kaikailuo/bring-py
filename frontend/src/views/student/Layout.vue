@@ -363,7 +363,7 @@ const sendAIMessage = () => {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .student-layout {
   height: 100vh;
   display: flex;
