@@ -312,7 +312,7 @@ const submitNewPost = async () => {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .forum-page {
   padding: $spacing-xl;
   height: 100%;
@@ -508,6 +508,7 @@ const submitNewPost = async () => {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3; 
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

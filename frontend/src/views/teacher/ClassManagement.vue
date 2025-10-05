@@ -569,7 +569,7 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .class-management {
   padding: $spacing-xl;
   height: 100%;

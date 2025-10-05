@@ -25,17 +25,23 @@
                   <el-input
                     v-model="studentForm.username"
                     placeholder="请输入学号"
-                    prefix-icon="User"
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><User /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                   <el-input
                     v-model="studentForm.password"
                     type="password"
                     placeholder="请输入密码"
-                    prefix-icon="Lock"
                     show-password
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><Lock /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item>
                   <div class="form-options">
@@ -70,17 +76,23 @@
                   <el-input
                     v-model="teacherForm.username"
                     placeholder="请输入工号"
-                    prefix-icon="User"
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><User /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                   <el-input
                     v-model="teacherForm.password"
                     type="password"
                     placeholder="请输入密码"
-                    prefix-icon="Lock"
                     show-password
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><Lock /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item>
                   <div class="form-options">
@@ -115,17 +127,23 @@
                   <el-input
                     v-model="adminForm.username"
                     placeholder="请输入管理员账号"
-                    prefix-icon="User"
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><User /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                   <el-input
                     v-model="adminForm.password"
                     type="password"
                     placeholder="请输入密码"
-                    prefix-icon="Lock"
                     show-password
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><Lock /></el-icon>
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item>
                   <div class="form-options">
@@ -225,10 +243,11 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElInput, ElButton, ElForm, ElFormItem, ElTabs, ElTabPane, ElCheckbox, ElLink, ElDialog, ElRadioGroup, ElRadio } from 'element-plus'
+import { User, Lock, School, UserFilled, Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -433,6 +452,11 @@ const handleRegister = async () => {
     ElMessage.error('注册失败，请检查输入信息')
   }
 }
+
+// 组件挂载时的初始化
+onMounted(() => {
+  console.log('Login component mounted successfully')
+})
 </script>
 
 <style lang="scss" scoped>
@@ -444,6 +468,7 @@ const handleRegister = async () => {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  z-index: 1;
 }
 
 .login-container {
@@ -460,6 +485,9 @@ const handleRegister = async () => {
   backdrop-filter: blur(10px);
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .login-header {
@@ -507,6 +535,9 @@ const handleRegister = async () => {
   height: 48px;
   font-size: $font-size-md;
   font-weight: bold;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .form-options {
@@ -535,6 +566,7 @@ const handleRegister = async () => {
   right: 0;
   bottom: 0;
   z-index: 1;
+  pointer-events: none;
 }
 
 .floating-shapes {
@@ -589,6 +621,20 @@ const handleRegister = async () => {
   50% {
     transform: translateY(-20px) rotate(180deg);
   }
+}
+
+/* 确保所有交互元素都能正常工作 */
+:deep(.el-input),
+:deep(.el-button),
+:deep(.el-checkbox),
+:deep(.el-link),
+:deep(.el-tabs),
+:deep(.el-tab-pane),
+:deep(.el-form),
+:deep(.el-form-item) {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
 }
 
 /* 响应式设计 */
