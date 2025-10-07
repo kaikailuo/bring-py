@@ -94,3 +94,10 @@ dist
 # Temporary folders
 tmp/
 temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env/
