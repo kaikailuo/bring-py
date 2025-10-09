@@ -101,3 +101,34 @@ __pycache__/
 *$py.class
 venv/
 .env/
+
+# Python tooling caches and test output
+.pytest_cache/
+.mypy_cache/
+.tox/
+htmlcov/
+.coverage
+.coverage.*
+
+# Build / packaging artifacts
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual env common names
+.venv/
+env/
+ENV/
+
+# OS / misc
+Thumbs.db
+desktop.ini
+
+# Local DB files (uncomment if you don't want DB files in repo)
+# *.sqlite3
+# *.db
