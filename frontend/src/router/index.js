@@ -102,36 +102,36 @@ const routes = [
       }
     ]
   },
-  {
-    path: '/admin',
-    name: 'Admin',
-    component: () => import('@/views/admin/Layout.vue'),
-    meta: { title: '管理员', requiresAuth: true, role: 'admin' },
-    children: [
-      {
-        path: '',
-        redirect: '/admin/dashboard'
-      },
-      {
-        path: 'dashboard',
-        name: 'AdminDashboard',
-        component: () => import('@/views/admin/Dashboard.vue'),
-        meta: { title: '管理仪表盘' }
-      },
-      {
-        path: 'user-management',
-        name: 'UserManagement',
-        component: () => import('@/views/admin/UserManagement.vue'),
-        meta: { title: '用户管理' }
-      },
-      {
-        path: 'system-settings',
-        name: 'SystemSettings',
-        component: () => import('@/views/admin/SystemSettings.vue'),
-        meta: { title: '系统设置' }
-      }
-    ]
-  },
+  // {
+  //   path: '/admin',
+  //   name: 'Admin',
+  //   component: () => import('@/views/admin/Layout.vue'),
+  //   meta: { title: '管理员', requiresAuth: true, role: 'admin' },
+  //   children: [
+  //     {
+  //       path: '',
+  //       redirect: '/admin/dashboard'
+  //     },
+  //     {
+  //       path: 'dashboard',
+  //       name: 'AdminDashboard',
+  //       component: () => import('@/views/admin/Dashboard.vue'),
+  //       meta: { title: '管理仪表盘' }
+  //     },
+  //     {
+  //       path: 'user-management',
+  //       name: 'UserManagement',
+  //       component: () => import('@/views/admin/UserManagement.vue'),
+  //       meta: { title: '用户管理' }
+  //     },
+  //     {
+  //       path: 'system-settings',
+  //       name: 'SystemSettings',
+  //       component: () => import('@/views/admin/SystemSettings.vue'),
+  //       meta: { title: '系统设置' }
+  //     }
+  //   ]
+  // },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

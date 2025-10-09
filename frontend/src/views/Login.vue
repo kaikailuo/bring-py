@@ -115,7 +115,7 @@
               </el-form>
             </el-tab-pane>
 
-            <el-tab-pane label="管理员登录" name="admin">
+            <!-- <el-tab-pane label="管理员登录" name="admin">
               <el-form
                 ref="adminFormRef"
                 :model="adminForm"
@@ -164,7 +164,7 @@
                   </el-button>
                 </el-form-item>
               </el-form>
-            </el-tab-pane>
+            </el-tab-pane> -->
           </el-tabs>
         </div>
 
@@ -246,6 +246,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { authAPI } from '@/utils/api'
 import { ElMessage, ElInput, ElButton, ElForm, ElFormItem, ElTabs, ElTabPane, ElCheckbox, ElLink, ElDialog, ElRadioGroup, ElRadio } from 'element-plus'
 import { User, Lock, School, UserFilled, Setting } from '@element-plus/icons-vue'
 
@@ -366,38 +367,36 @@ const handleLogin = async (formRef, formData, role) => {
     await formRef.value.validate()
     loading.value = true
     
-    // 模拟登录请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟用户数据
-    const userData = {
-      id: Date.now(),
+    // 调用真实的后端API
+    const response = await authAPI.login({
       username: formData.username,
-      name: role === 'student' ? '张同学' : role === 'teacher' ? '李老师' : '管理员',
-      role: role,
-      avatar: '',
-      email: `${formData.username}@example.com`
-    }
+      password: formData.password
+    })
     
-    const token = `token_${Date.now()}_${role}`
-    
-    // 保存用户信息
-    userStore.login(userData, token)
-    
-    ElMessage.success(`${role === 'student' ? '学生' : role === 'teacher' ? '教师' : '管理员'}登录成功！`)
-    
-    // 根据角色跳转
-    if (role === 'student') {
-      router.push('/student')
-    } else if (role === 'teacher') {
-      router.push('/teacher')
-    } else if (role === 'admin') {
-      router.push('/admin')
+    if (response.code === 200) {
+      const { token, user } = response.data
+      
+      // 保存用户信息和令牌
+      localStorage.setItem('token', token)
+      userStore.login(user, token)
+      
+      ElMessage.success(`${user.role === 'student' ? '学生' : user.role === 'teacher' ? '教师' : '管理员'}登录成功！`)
+      
+      // 根据角色跳转
+      if (user.role === 'student') {
+        router.push('/student')
+      } else if (user.role === 'teacher') {
+        router.push('/teacher')
+      } else if (user.role === 'admin') {
+        router.push('/admin')
+      }
+    } else {
+      ElMessage.error(response.message || '登录失败')
     }
     
   } catch (error) {
     console.error('登录失败:', error)
-    ElMessage.error('登录失败，请检查输入信息')
+    ElMessage.error(error.message || '登录失败，请检查输入信息')
   } finally {
     loading.value = false
   }
@@ -440,16 +439,25 @@ const handleRegister = async () => {
   try {
     await registerFormRef.value.validate()
     
-    // 模拟注册请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await authAPI.register({
+      username: registerForm.username,
+      password: registerForm.password,
+      role: registerForm.role,
+      name: registerForm.name,
+      email: registerForm.email
+    })
     
-    ElMessage.success('注册成功！请使用新账号登录')
-    registerDialogVisible.value = false
-    handleRegisterClose()
+    if (response.code === 200) {
+      ElMessage.success('注册成功！请使用新账号登录')
+      registerDialogVisible.value = false
+      handleRegisterClose()
+    } else {
+      ElMessage.error(response.message || '注册失败')
+    }
     
   } catch (error) {
     console.error('注册失败:', error)
-    ElMessage.error('注册失败，请检查输入信息')
+    ElMessage.error(error.message || '注册失败，请检查输入信息')
   }
 }
 
