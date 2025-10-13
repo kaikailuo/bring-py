@@ -10,7 +10,7 @@ from pathlib import Path
 
 def start_backend():
     """启动后端服务"""
-    backend_dir = Path(__file__).parent / "backend"
+    backend_dir = os.path.join("backend")
     print("🚀 启动后端服务...")
     return subprocess.Popen(
         [sys.executable, "start_server.py"],
@@ -20,8 +20,8 @@ def start_backend():
 
 def start_frontend():
     """启动前端服务"""
-    frontend_dir = Path(__file__).parent / "frontend"
-    print("🚀 启动前端服务...")
+    frontend_dir = os.path.join("frontend")
+    print("\n🚀 启动前端服务...")
     return subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=frontend_dir,
@@ -39,11 +39,11 @@ def main():
     try:
         # 启动后端
         backend_process = start_backend()
-        time.sleep(3)  # 等待后端启动
-        
+        time.sleep(4)  # 等待后端启动
         # 启动前端
         frontend_process = start_frontend()
-        
+        time.sleep(4)  # 等待后端启动
+
         print("\n✅ 服务启动完成！")
         print("📖 后端API文档: http://localhost:8000/docs")
         print("🌐 前端应用: http://localhost:5173")

@@ -8,164 +8,62 @@
             <span class="logo-text">高中信息技术教学平台</span>
           </div>
           <h2 class="login-title">欢迎登录</h2>
-          <p class="login-subtitle">选择您的身份开始学习之旅</p>
+          <p class="login-subtitle">请输入您的账号和密码</p>
         </div>
 
         <div class="login-form">
-          <el-tabs v-model="activeTab" class="role-tabs">
-            <el-tab-pane label="学生登录" name="student">
-              <el-form
-                ref="studentFormRef"
-                :model="studentForm"
-                :rules="studentRules"
-                size="large"
-                @submit.prevent="handleStudentLogin"
+          <el-form
+            ref="loginFormRef"
+            :model="loginForm"
+            :rules="loginRules"
+            size="large"
+            @submit.prevent="handleLogin"
+            @keyup.enter.native="handleLogin"
+          >
+            <el-form-item prop="username">
+              <el-input
+                v-model="loginForm.username"
+                placeholder="请输入用户名 / 学号 / 工号"
               >
-                <el-form-item prop="username">
-                  <el-input
-                    v-model="studentForm.username"
-                    placeholder="请输入学号"
-                  >
-                    <template #prefix>
-                      <el-icon><User /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                  <el-input
-                    v-model="studentForm.password"
-                    type="password"
-                    placeholder="请输入密码"
-                    show-password
-                  >
-                    <template #prefix>
-                      <el-icon><Lock /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item>
-                  <div class="form-options">
-                    <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-                    <el-link type="primary">忘记密码？</el-link>
-                  </div>
-                </el-form-item>
-                <el-form-item>
-                  <el-button
-                    type="primary"
-                    size="large"
-                    :loading="loading"
-                    @click="handleStudentLogin"
-                    class="login-button"
-                  >
-                    <el-icon><User /></el-icon>
-                    学生登录
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-tab-pane>
+                <template #prefix>
+                  <el-icon><User /></el-icon>
+                </template>
+              </el-input>
+            </el-form-item>
 
-            <el-tab-pane label="教师登录" name="teacher">
-              <el-form
-                ref="teacherFormRef"
-                :model="teacherForm"
-                :rules="teacherRules"
-                size="large"
-                @submit.prevent="handleTeacherLogin"
+            <el-form-item prop="password">
+              <el-input
+                v-model="loginForm.password"
+                type="password"
+                placeholder="请输入密码"
+                show-password
               >
-                <el-form-item prop="username">
-                  <el-input
-                    v-model="teacherForm.username"
-                    placeholder="请输入工号"
-                  >
-                    <template #prefix>
-                      <el-icon><User /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                  <el-input
-                    v-model="teacherForm.password"
-                    type="password"
-                    placeholder="请输入密码"
-                    show-password
-                  >
-                    <template #prefix>
-                      <el-icon><Lock /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item>
-                  <div class="form-options">
-                    <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-                    <el-link type="primary">忘记密码？</el-link>
-                  </div>
-                </el-form-item>
-                <el-form-item>
-                  <el-button
-                    type="success"
-                    size="large"
-                    :loading="loading"
-                    @click="handleTeacherLogin"
-                    class="login-button"
-                  >
-                    <el-icon><UserFilled /></el-icon>
-                    教师登录
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-tab-pane>
+                <template #prefix>
+                  <el-icon><Lock /></el-icon>
+                </template>
+              </el-input>
+            </el-form-item>
 
-            <!-- <el-tab-pane label="管理员登录" name="admin">
-              <el-form
-                ref="adminFormRef"
-                :model="adminForm"
-                :rules="adminRules"
+            <el-form-item>
+              <div class="form-options">
+                <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+                <el-link type="primary">忘记密码？</el-link>
+              </div>
+            </el-form-item>
+
+            <el-form-item>
+              <el-button
+                type="primary"
                 size="large"
-                @submit.prevent="handleAdminLogin"
+                :loading="loading"
+                @click="handleLogin"
+                class="login-button"
               >
-                <el-form-item prop="username">
-                  <el-input
-                    v-model="adminForm.username"
-                    placeholder="请输入管理员账号"
-                  >
-                    <template #prefix>
-                      <el-icon><User /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                  <el-input
-                    v-model="adminForm.password"
-                    type="password"
-                    placeholder="请输入密码"
-                    show-password
-                  >
-                    <template #prefix>
-                      <el-icon><Lock /></el-icon>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item>
-                  <div class="form-options">
-                    <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-                    <el-link type="primary">忘记密码？</el-link>
-                  </div>
-                </el-form-item>
-                <el-form-item>
-                  <el-button
-                    type="warning"
-                    size="large"
-                    :loading="loading"
-                    @click="handleAdminLogin"
-                    class="login-button"
-                  >
-                    <el-icon><Setting /></el-icon>
-                    管理员登录
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-tab-pane> -->
-          </el-tabs>
+                <el-icon><User /></el-icon>
+                登录
+              </el-button>
+            </el-form-item>
+          </el-form>
         </div>
 
         <div class="login-footer">
@@ -247,68 +145,27 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { authAPI } from '@/utils/api'
-import { ElMessage, ElInput, ElButton, ElForm, ElFormItem, ElTabs, ElTabPane, ElCheckbox, ElLink, ElDialog, ElRadioGroup, ElRadio } from 'element-plus'
-import { User, Lock, School, UserFilled, Setting } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { User, Lock, School } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-// 响应式数据
-const activeTab = ref('student')
 const loading = ref(false)
 const rememberMe = ref(false)
 const registerDialogVisible = ref(false)
 
-// 表单引用
-const studentFormRef = ref()
-const teacherFormRef = ref()
-const adminFormRef = ref()
-const registerFormRef = ref()
-
-// 学生表单
-const studentForm = reactive({
+// 登录表单
+const loginFormRef = ref()
+const loginForm = reactive({
   username: '',
   password: ''
 })
 
-const studentRules = {
+const loginRules = {
   username: [
-    { required: true, message: '请输入学号', trigger: 'blur' },
-    { min: 3, max: 20, message: '学号长度应为3-20个字符', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
-  ]
-}
-
-// 教师表单
-const teacherForm = reactive({
-  username: '',
-  password: ''
-})
-
-const teacherRules = {
-  username: [
-    { required: true, message: '请输入工号', trigger: 'blur' },
-    { min: 3, max: 20, message: '工号长度应为3-20个字符', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
-  ]
-}
-
-// 管理员表单
-const adminForm = reactive({
-  username: '',
-  password: ''
-})
-
-const adminRules = {
-  username: [
-    { required: true, message: '请输入管理员账号', trigger: 'blur' },
-    { min: 3, max: 20, message: '账号长度应为3-20个字符', trigger: 'blur' }
+    { required: true, message: '请输入用户名 / 学号 / 工号', trigger: 'blur' },
+    { min: 3, max: 20, message: '长度应为3-20个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -317,6 +174,7 @@ const adminRules = {
 }
 
 // 注册表单
+const registerFormRef = ref()
 const registerForm = reactive({
   role: 'student',
   username: '',
@@ -360,29 +218,26 @@ const registerRules = {
 }
 
 // 登录处理函数
-const handleLogin = async (formRef, formData, role) => {
-  if (!formRef.value) return
-  
+const handleLogin = async () => {
+  if (!loginFormRef.value) return
+
   try {
-    await formRef.value.validate()
+    await loginFormRef.value.validate()
     loading.value = true
-    
-    // 调用真实的后端API
+
     const response = await authAPI.login({
-      username: formData.username,
-      password: formData.password
+      username: loginForm.username,
+      password: loginForm.password
     })
-    
+
     if (response.code === 200) {
       const { token, user } = response.data
-      
-      // 保存用户信息和令牌
+
       localStorage.setItem('token', token)
       userStore.login(user, token)
-      
+
       ElMessage.success(`${user.role === 'student' ? '学生' : user.role === 'teacher' ? '教师' : '管理员'}登录成功！`)
-      
-      // 根据角色跳转
+
       if (user.role === 'student') {
         router.push('/student')
       } else if (user.role === 'teacher') {
@@ -393,7 +248,6 @@ const handleLogin = async (formRef, formData, role) => {
     } else {
       ElMessage.error(response.message || '登录失败')
     }
-    
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error(error.message || '登录失败，请检查输入信息')
@@ -402,26 +256,13 @@ const handleLogin = async (formRef, formData, role) => {
   }
 }
 
-const handleStudentLogin = () => {
-  handleLogin(studentFormRef, studentForm, 'student')
-}
-
-const handleTeacherLogin = () => {
-  handleLogin(teacherFormRef, teacherForm, 'teacher')
-}
-
-const handleAdminLogin = () => {
-  handleLogin(adminFormRef, adminForm, 'admin')
-}
-
-// 注册相关函数
+// 注册函数
 const showRegisterDialog = () => {
   registerDialogVisible.value = true
 }
 
 const handleRegisterClose = () => {
   registerDialogVisible.value = false
-  // 重置表单
   Object.assign(registerForm, {
     role: 'student',
     username: '',
@@ -435,10 +276,8 @@ const handleRegisterClose = () => {
 
 const handleRegister = async () => {
   if (!registerFormRef.value) return
-  
   try {
     await registerFormRef.value.validate()
-    
     const response = await authAPI.register({
       username: registerForm.username,
       password: registerForm.password,
@@ -446,26 +285,30 @@ const handleRegister = async () => {
       name: registerForm.name,
       email: registerForm.email
     })
-    
     if (response.code === 200) {
       ElMessage.success('注册成功！请使用新账号登录')
-      registerDialogVisible.value = false
       handleRegisterClose()
     } else {
       ElMessage.error(response.message || '注册失败')
     }
-    
   } catch (error) {
     console.error('注册失败:', error)
     ElMessage.error(error.message || '注册失败，请检查输入信息')
   }
 }
 
-// 组件挂载时的初始化
+/* 
+// （未来开发）管理员登录界面模板 — 暂不启用
+const handleAdminLogin = () => {
+  handleLogin(loginFormRef, loginForm, 'admin')
+}
+*/
+
 onMounted(() => {
-  console.log('Login component mounted successfully')
+  console.log('统一登录界面加载成功')
 })
 </script>
+
 
 <style lang="scss" scoped>
 .login-page {
