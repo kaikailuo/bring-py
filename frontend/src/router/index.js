@@ -19,6 +19,12 @@ const routes = [
     meta: { title: '登录', hideForAuth: true }
   },
   {
+    path: '/contact',
+    name: 'Contact',
+    component: () => import('@/views/Contact.vue'),
+    meta: { title: '联系我们' }
+  },
+  {
     path: '/student',
     name: 'Student',
     component: () => import('@/views/student/Layout.vue'),

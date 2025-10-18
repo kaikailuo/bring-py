@@ -10,7 +10,7 @@
         <nav class="nav">
           <a href="#features" class="nav-link">功能特色</a>
           <a href="#about" class="nav-link">关于我们</a>
-          <a href="#contact" class="nav-link">联系我们</a>
+          <router-link to="/contact" class="nav-link">联系我们</router-link>
         </nav>
         <div class="auth-buttons">
           <el-button type="primary" @click="$router.push('/login')">
@@ -248,7 +248,7 @@ for i in range(10):
             <ul class="footer-links">
               <li><a href="#features">功能特色</a></li>
               <li><a href="#about">关于我们</a></li>
-              <li><a href="#contact">联系我们</a></li>
+              <li><router-link to="/contact">联系我们</router-link></li>
               <li><a href="/login">用户登录</a></li>
             </ul>
           </div>
