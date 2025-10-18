@@ -25,6 +25,18 @@ const routes = [
     meta: { title: '联系我们' }
   },
   {
+    path: '/about-us',
+    name: 'AboutUs',
+    component: () => import('@/views/AboutUs.vue'),
+    meta: { title: '关于我们' }
+  },
+  {
+    path: '/feedback',
+    name: 'Feedback',
+    component: () => import('@/views/Feedback.vue'),
+    meta: { title: '问题反馈' }
+  },
+  {
     path: '/student',
     name: 'Student',
     component: () => import('@/views/student/Layout.vue'),
