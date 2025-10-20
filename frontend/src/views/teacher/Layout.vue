@@ -133,8 +133,8 @@
             </h3>
             <div class="action-items">
               <div class="action-item" @click="$router.push('/teacher/resource-management')">
-                <el-icon><Upload /></el-icon>
-                <span>上传资源</span>
+                <el-icon><FolderOpened /></el-icon>
+                <span>资源管理</span>
               </div>
               <div class="action-item" @click="$router.push('/teacher/class-management')">
                 <el-icon><UserFilled /></el-icon>
