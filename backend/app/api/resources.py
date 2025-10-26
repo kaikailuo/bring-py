@@ -272,6 +272,11 @@ async def download_resource(
         # 直接抛出HTTPException，因为这是文件下载接口，不是JSON响应
         raise e
     except Exception as e:
+        # 在 download_resource 函数中添加更多调试信息
+        print(f"当前工作目录: {os.getcwd()}")
+        print(f"尝试的文件路径: {file_path}")
+        print(f"文件是否存在: {os.path.exists(file_path)}")
+        
         print(f"下载错误: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

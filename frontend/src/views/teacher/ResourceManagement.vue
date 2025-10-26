@@ -58,7 +58,7 @@
         <div class="resource-card" v-for="resource in filteredResources" :key="resource.id">
           <!-- 资源图标 -->
           <div class="resource-icon" :class="`type-${resource.type}`">
-            <i :class="getResourceIcon(resource.type)"></i>
+<i :class="getResourceIcon(resource.type)"></i>
 </div>
           
           <!-- 资源信息 -->
@@ -90,11 +90,10 @@
     <!-- 分页控件 -->
     <div class="pagination" v-if="filteredResources.length > 0">
       <button class="page-btn" :disabled="currentPage === 1">上一页</button>
-      <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+<span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
       <button class="page-btn" :disabled="currentPage === totalPages">下一页</button>
     </div>
-
-    <!-- 上传资源模态框 -->
+<!-- 上传资源模态框 -->
     <el-dialog 
       title="上传新资源" 
       v-model="uploadModalVisible" 
@@ -350,32 +349,30 @@ export default {
       }
     },
   
-    // 修改上传方法，添加category字段并修正响应检查逻辑
     async handleUpload() {
       if (!this.selectedFile) return
       
       this.uploading = true
       try {
-        // 创建FormData对象，只包含文件
+        // 创建FormData对象，包含文件和所有元数据
         const formData = new FormData()
         formData.append('file', this.selectedFile.raw)
-        
-        // 构建查询参数
-        const resourceMeta = {
-          title: this.resourceMeta.name || this.selectedFile.name,
-          description: this.resourceMeta.description || '',
-          type: this.resourceMeta.type || 'other',
-          category: 'teaching', // 添加必填的category字段
-          ...(this.resourceMeta.courseId && { course_id: this.resourceMeta.courseId })
+        formData.append('title', this.resourceMeta.name || this.selectedFile.name)
+        formData.append('description', this.resourceMeta.description || '')
+        formData.append('type', this.resourceMeta.type || 'other')
+        formData.append('category', 'teaching') // 添加必填的category字段
+        if (this.resourceMeta.courseId) {
+          formData.append('course_id', this.resourceMeta.courseId)
+          // 如果有课程名称，也添加进去
+          if (this.resourceMeta.courseName) {
+            formData.append('course_name', this.resourceMeta.courseName)
+          }
         }
         
-        // 构建带查询参数的URL
-        const queryString = new URLSearchParams(resourceMeta).toString()
+        // 调用修复后的API方法
+        const response = await resourceAPI.uploadResource(formData)
         
-        // 调用后端API上传资源
-        const response = await resourceAPI.uploadResource(formData, queryString)
-        
-        // 修正响应检查逻辑，只保留正确的判断
+        // 简化响应处理
         if (response && response.code === 200) {
           this.$message.success('资源上传成功')
           this.closeUploadModal()
@@ -391,10 +388,16 @@ export default {
       }
     },
     
-    // 下载资源
-    downloadResource(resource) {
-      resourceAPI.downloadResource(resource.id)
-    },
+    // 恢复原来的downloadResource方法，保持简单
+    async downloadResource(resource) {
+      try {
+        // 直接调用修复后的API方法
+        await resourceAPI.downloadResource(resource.id)
+      } catch (error) {
+        this.$message.error('下载失败，请重试')
+        console.error('资源下载错误:', error)
+      }
+    }, // 添加缺失的逗号
     
     // 确认删除
     confirmDelete(resource) {
