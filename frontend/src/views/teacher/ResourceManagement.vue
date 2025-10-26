@@ -46,7 +46,7 @@
     </div>
 
     <!-- 资源列表区域 -->
-    <div class="resource-list">
+<div class="resource-list">
       <!-- 无资源状态 -->
       <div v-if="filteredResources.length === 0" class="empty-state">
         <img src="@/assets/icons/empty-resource.svg" alt="暂无资源" class="empty-icon">
@@ -59,7 +59,7 @@
           <!-- 资源图标 -->
           <div class="resource-icon" :class="`type-${resource.type}`">
             <i :class="getResourceIcon(resource.type)"></i>
-          </div>
+</div>
           
           <!-- 资源信息 -->
           <div class="resource-info">
@@ -76,13 +76,13 @@
             <button class="action-btn" @click="downloadResource(resource)" title="下载">
               <i class="icon-download"></i>
             </button>
-            <button class="action-btn" @click="editResource(resource)" title="编辑">
+<button class="action-btn" @click="editResource(resource)" title="编辑">
               <i class="icon-edit"></i>
             </button>
             <button class="action-btn danger" @click="confirmDelete(resource)" title="删除">
               <i class="icon-delete"></i>
             </button>
-          </div>
+</div>
         </div>
       </div>
     </div>
@@ -98,7 +98,7 @@
     <el-dialog 
       title="上传新资源" 
       v-model="uploadModalVisible" 
-      width="500px"
+width="500px"
       :close-on-click-modal="false"
     >
       <div class="upload-modal-content">
@@ -108,7 +108,7 @@
             type="file" 
             ref="fileInput" 
             class="file-input" 
-            @change="handleFileSelect"
+@change="handleFileSelect"
             accept=".ppt,.pptx,.pdf,.doc,.docx,.mp4,.mp3,.zip,.rar"
           >
           <div class="upload-placeholder" v-if="!selectedFile">
@@ -195,44 +195,25 @@
 </template>
 
 <script>
+// 将import语句移到script标签顶部
+import { resourceAPI } from '@/utils/api'
+
 export default {
   data() {
     return {
-      // 资源列表（模拟数据）
-      resources: [
-        {
-          id: 'res-1001',
-          name: '高等数学（上）第一章课件',
-          type: 'ppt',
-          size: 5242880, // 5MB
-          uploadDate: '2023-10-15T08:30:00',
-          courseId: '101',
-          courseName: '高等数学（上）',
-          downloadUrl: '#',
-        },
-        {
-          id: 'res-1002',
-          name: '线性代数习题集（期末复习版）',
-          type: 'pdf',
-          size: 2097152, // 2MB
-          uploadDate: '2023-10-20T14:15:00',
-          courseId: '102',
-          courseName: '线性代数',
-          downloadUrl: '#',
-        },
-        // ... 可添加更多模拟资源
-      ],
-      searchQuery: '', // 搜索关键词
-      typeFilter: '', // 资源类型筛选
-      sortBy: 'date-desc', // 排序方式
-      currentPage: 1, // 当前页码
-      pageSize: 10, // 每页条数
+      // 将模拟数据替换为空数组，从后端获取
+      resources: [],
+      searchQuery: '',
+      typeFilter: '',
+      sortBy: 'date-desc',
+      currentPage: 1,
+      pageSize: 10,
 
       // 上传相关状态
-      uploadModalVisible: false, // 上传模态框显示状态
-      selectedFile: null, // 选中的文件对象
-      uploading: false, // 是否正在上传
-      resourceMeta: { // 资源元信息
+      uploadModalVisible: false,
+      selectedFile: null,
+      uploading: false,
+      resourceMeta: {
         name: '',
         type: '',
         courseId: '',
@@ -240,12 +221,17 @@ export default {
       },
 
       // 删除相关状态
-      deleteConfirmVisible: false, // 删除确认框显示状态
-      currentResource: null // 当前操作的资源
+      deleteConfirmVisible: false,
+      currentResource: null,
+      totalPages: 0
     };
   },
+  created() {
+    // 组件创建时获取资源列表
+    this.fetchResources()
+  },
   computed: {
-    // 筛选后的资源列表
+    // 筛选后的资源列表（保留原有的前端筛选逻辑）
     filteredResources() {
       let result = [...this.resources];
       
@@ -277,34 +263,65 @@ export default {
       });
       
       return result;
-    },
-    // 总页数
-    totalPages() {
-      return Math.ceil(this.filteredResources.length / this.pageSize);
     }
   },
   methods: {
+    // 获取资源列表的方法
+    async fetchResources() {
+      try {
+        const params = {
+          search: this.searchQuery,
+          type_filter: this.typeFilter,
+          page: this.currentPage,
+          page_size: this.pageSize
+        }
+        
+        const response = await resourceAPI.getResources(params)
+        // 修改：检查response.code === 200而不是0
+        if (response && response.code === 200 && response.data) {
+          this.resources = response.data.items || []
+          this.totalPages = Math.ceil((response.data.total || 0) / this.pageSize)
+        } else {
+          this.resources = []
+          this.totalPages = 0
+          throw new Error('Invalid response format')
+        }
+      } catch (error) {
+        this.$message.error('获取资源列表失败')
+        console.error('获取资源列表错误:', error)
+      }
+    },
+    
+    // 处理搜索和筛选变化
+    handleSearch() {
+      this.currentPage = 1
+      this.fetchResources()
+    },
+  
     // 打开上传模态框
     openUploadModal() {
       this.uploadModalVisible = true;
       this.selectedFile = null;
       this.resourceMeta = { name: '', type: '', courseId: '', description: '' };
     },
+  
     // 关闭上传模态框
     closeUploadModal() {
       this.uploadModalVisible = false;
       this.clearSelectedFile();
     },
+  
     // 触发文件选择
     triggerFileSelect() {
       this.$refs.fileInput.click();
     },
+  
     // 处理文件选择
     handleFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;
       
-      // 提取文件类型（简化处理）
+      // 提取文件类型
       const fileExt = file.name.split('.').pop().toLowerCase();
       const typeMap = {
         'ppt': 'ppt', 'pptx': 'ppt',
@@ -324,89 +341,88 @@ export default {
       this.resourceMeta.name = file.name.replace(/\.[^/.]+$/, '');
       this.resourceMeta.type = this.selectedFile.type;
     },
+  
     // 清除选中文件
     clearSelectedFile() {
       this.selectedFile = null;
-      this.$refs.fileInput.value = ''; // 重置文件输入，允许重复选择同一文件
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
+      }
     },
-    // 处理上传（模拟）
-    handleUpload() {
-      this.uploading = true;
+  
+    // 修改上传方法，添加category字段并修正响应检查逻辑
+    async handleUpload() {
+      if (!this.selectedFile) return
       
-      // 模拟上传过程（实际项目中替换为 axios 请求）
-      setTimeout(() => {
-        // 生成新资源对象
-        const newResource = {
-          id: `res-${Date.now()}`,
-          name: this.resourceMeta.name || this.selectedFile.name,
-          type: this.resourceMeta.type,
-          size: this.selectedFile.size,
-          uploadDate: new Date().toISOString(),
-          courseId: this.resourceMeta.courseId,
-          courseName: this.getCourseName(this.resourceMeta.courseId),
-          downloadUrl: '#'
-        };
+      this.uploading = true
+      try {
+        // 创建FormData对象，只包含文件
+        const formData = new FormData()
+        formData.append('file', this.selectedFile.raw)
         
-        // 添加到资源列表
-        this.resources.unshift(newResource);
+        // 构建查询参数
+        const resourceMeta = {
+          title: this.resourceMeta.name || this.selectedFile.name,
+          description: this.resourceMeta.description || '',
+          type: this.resourceMeta.type || 'other',
+          category: 'teaching', // 添加必填的category字段
+          ...(this.resourceMeta.courseId && { course_id: this.resourceMeta.courseId })
+        }
         
-        this.uploading = false;
-        this.uploadModalVisible = false;
-        this.$message.success('资源上传成功！');
-      }, 1500);
-    },
-    // 下载资源（模拟）
-    downloadResource(resource) {
-      this.$message.info(`开始下载：${resource.name}`);
-      // 实际项目中通过 window.open(resource.downloadUrl) 或创建 a 标签下载
-    },
-    // 编辑资源（跳转或打开编辑模态框）
-    editResource(resource) {
-      // 实际项目中可打开编辑模态框或路由跳转
-      this.$message.info(`编辑资源：${resource.name}`);
-    },
-    // 确认删除
-    confirmDelete(resource) {
-      this.currentResource = resource;
-      this.deleteConfirmVisible = true;
-    },
-    // 执行删除（模拟）
-    deleteResource() {
-      this.resources = this.resources.filter(
-        res => res.id !== this.currentResource.id
-      );
-      this.deleteConfirmVisible = false;
-      this.$message.success('资源已删除');
+        // 构建带查询参数的URL
+        const queryString = new URLSearchParams(resourceMeta).toString()
+        
+        // 调用后端API上传资源
+        const response = await resourceAPI.uploadResource(formData, queryString)
+        
+        // 修正响应检查逻辑，只保留正确的判断
+        if (response && response.code === 200) {
+          this.$message.success('资源上传成功')
+          this.closeUploadModal()
+          this.fetchResources() // 重新获取资源列表
+        } else {
+          this.$message.error('上传失败：' + (response?.message || '未知错误'))
+        }
+      } catch (error) {
+        this.$message.error('上传出错，请重试')
+        console.error('资源上传错误:', error)
+      } finally {
+        this.uploading = false
+      }
     },
     
-    // 工具函数：格式化文件大小
-    formatFileSize(bytes) {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    // 下载资源
+    downloadResource(resource) {
+      resourceAPI.downloadResource(resource.id)
     },
-    // 工具函数：格式化日期
-    formatDate(dateString) {
-      return new Date(dateString).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+    
+    // 确认删除
+    confirmDelete(resource) {
+      this.currentResource = resource
+      this.deleteConfirmVisible = true
     },
-    // 工具函数：获取资源类型名称
-    getResourceTypeName(type) {
-      const typeNames = {
-        'ppt': 'PPT 课件',
-        'pdf': 'PDF 讲义',
-        'doc': '文档作业',
-        'video': '教学视频',
-        'other': '其他资源'
-      };
-      return typeNames[type] || '未知类型';
+    
+    // 删除资源
+    async deleteResource() {
+      if (!this.currentResource) return
+      
+      try {
+        const response = await resourceAPI.deleteResource(this.currentResource.id)
+        // 修复响应检查逻辑，将0改为200
+        if (response && response.code === 200) {
+          this.$message.success('资源删除成功')
+          this.deleteConfirmVisible = false
+          this.fetchResources() // 重新获取资源列表
+        } else {
+          this.$message.error('删除失败：' + (response?.message || '未知错误'))
+        }
+      } catch (error) {
+        this.$message.error('删除出错，请重试')
+        console.error('资源删除错误:', error)
+      }
     },
-    // 工具函数：获取资源图标（假设使用 iconfont）
+    
+    // 获取资源图标
     getResourceIcon(type) {
       const iconMap = {
         'ppt': 'icon-ppt',
@@ -415,22 +431,44 @@ export default {
         'video': 'icon-video',
         'other': 'icon-file'
       };
-      return `iconfont ${iconMap[type] || 'icon-file'}`;
+      return iconMap[type] || 'icon-file';
     },
-    // 工具函数：获取课程名称
-    getCourseName(courseId) {
-      const courseMap = {
-        '101': '高等数学（上）',
-        '102': '线性代数',
-        '103': '大学物理实验'
+    
+    // 获取资源类型名称
+    getResourceTypeName(type) {
+      const typeMap = {
+        'ppt': 'PPT 课件',
+        'pdf': 'PDF 讲义',
+        'doc': '文档作业',
+        'video': '教学视频',
+        'other': '其他资源'
       };
-      return courseMap[courseId] || '未关联课程';
+      return typeMap[type] || '其他资源';
+    },
+    
+    // 格式化文件大小
+    formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      else return (bytes / 1048576).toFixed(1) + ' MB';
+    },
+    
+    // 格式化日期
+    formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     }
   }
-};
+}
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .resource-management-container {
   padding: 20px;
   max-width: 1400px;
@@ -617,7 +655,6 @@ export default {
         
         &.danger {
           color: #f56c6c;
-          
           &:hover {
             background: #fef0f0;
           }
@@ -634,7 +671,6 @@ export default {
   margin-top: 30px;
   gap: 16px;
   color: #666;
-  
   .page-btn {
     padding: 6px 12px;
     border: 1px solid #ddd;

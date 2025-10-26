@@ -114,7 +114,61 @@ export const adminAPI = {
   }
 }
 
+// 添加在文件末尾，adminAPI模块定义之后
+
+// 资源管理API
+export const resourceAPI = {
+  // 获取资源列表
+  getResources: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return request(`/resources?${queryString}`, {
+      method: 'GET'
+    });
+  },
+
+  // 获取资源详情
+  getResourceDetail: (resourceId) => {
+    return request(`/resources/${resourceId}`, {
+      method: 'GET'
+    });
+  },
+
+  // 上传资源
+  uploadResource: (formData) => {
+    return request('/resources', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  // 更新资源
+  updateResource: (resourceId, resourceData) => {
+    return request(`/resources/${resourceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(resourceData)
+    });
+  },
+
+  // 删除资源
+  deleteResource: (resourceId) => {
+    return request(`/resources/${resourceId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // 下载资源
+  downloadResource: (resourceId) => {
+    const token = localStorage.getItem('token');
+    window.open(`${API_BASE_URL}/resources/${resourceId}/download?token=${token}`, '_blank');
+  }
+};
+
+// 同时更新默认导出
 export default {
   authAPI,
-  adminAPI
-}
+  adminAPI,
+  resourceAPI
+};

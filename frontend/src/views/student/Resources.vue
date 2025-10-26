@@ -56,32 +56,20 @@
             <p class="resource-description">{{ resource.description }}</p>
             <div class="resource-stats">
               <span class="stat-item">
-                <el-icon><View /></el-icon>
-                {{ resource.views }}
-              </span>
-              <span class="stat-item">
                 <el-icon><Download /></el-icon>
-                {{ resource.downloads }}
+                {{ resource.downloads }} 次下载
               </span>
               <span class="stat-item">
-                <el-icon><Star /></el-icon>
-                {{ resource.rating }}
+                <el-icon><Clock /></el-icon>
+                {{ formatFileSize(resource.size) }}
               </span>
             </div>
           </div>
           
           <div class="resource-actions">
-            <el-button type="primary" size="small" @click="viewResource(resource)">
-              <el-icon><View /></el-icon>
-              查看
-            </el-button>
-            <el-button size="small" @click="downloadResource(resource)">
+            <el-button type="primary" size="small" @click="downloadResource(resource)" class="download-btn">
               <el-icon><Download /></el-icon>
-              下载
-            </el-button>
-            <el-button size="small" @click="addToFavorites(resource)">
-              <el-icon><Star /></el-icon>
-              收藏
+              下载资源
             </el-button>
           </div>
         </div>
@@ -92,55 +80,15 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+// 在script setup的顶部导入API
+import { resourceAPI } from '@/utils/api'
 
-// 响应式数据
+// 响应式数据 - 只声明一次
 const searchKeyword = ref('')
 const selectedCategory = ref('all')
-
-// 模拟数据
-const categories = ref([
-  { id: 'all', name: '全部资源', icon: 'FolderOpened', count: 156 },
-  { id: 'python-basic', name: 'Python基础', icon: 'Document', count: 45 },
-  { id: 'data-structure', name: '数据结构', icon: 'Box', count: 38 },
-  { id: 'algorithm', name: '算法', icon: 'TrendCharts', count: 42 },
-  { id: 'oop', name: '面向对象', icon: 'Grid', count: 31 }
-])
-
-const resources = ref([
-  {
-    id: 1,
-    title: 'Python基础语法教程',
-    description: '详细介绍Python的基本语法、数据类型、控制结构等基础知识',
-    type: 'video',
-    format: 'MP4',
-    category: 'python-basic',
-    views: 1250,
-    downloads: 456,
-    rating: 4.8
-  },
-  {
-    id: 2,
-    title: '数据结构与算法课件',
-    description: '包含数组、链表、栈、队列、树等数据结构的详细讲解',
-    type: 'document',
-    format: 'PDF',
-    category: 'data-structure',
-    views: 980,
-    downloads: 234,
-    rating: 4.6
-  },
-  {
-    id: 3,
-    title: '排序算法演示',
-    description: '可视化演示各种排序算法的执行过程',
-    type: 'interactive',
-    format: 'HTML',
-    category: 'algorithm',
-    views: 756,
-    downloads: 123,
-    rating: 4.9
-  }
-])
+// 初始化空数组，通过API获取真实数据
+const categories = ref([])
+const resources = ref([])
 
 // 计算属性
 const filteredResources = computed(() => {
@@ -163,16 +111,72 @@ const filteredResources = computed(() => {
   return filtered
 })
 
-// 方法
-const selectCategory = (categoryId) => {
-  selectedCategory.value = categoryId
+// 在组件加载时获取资源数据
+async function fetchResources() {
+  try {
+    const params = {
+      search: searchKeyword.value,
+      category_filter: selectedCategory.value !== 'all' ? selectedCategory.value : undefined,
+      page: 1,
+      page_size: 100 // 获取足够多的资源
+    }
+    const response = await resourceAPI.getResources(params)
+    if (response.code === 200) {
+      resources.value = response.data.items || []
+      // 动态生成分类数据
+      generateCategories()
+    }
+  } catch (error) {
+    console.error('获取资源列表错误:', error)
+    // 显示错误提示（如果有消息组件）
+    if (typeof window !== 'undefined' && window.$message) {
+      window.$message.error('获取资源列表失败')
+    }
+  }
 }
 
-const handleSearch = () => {
-  // 搜索逻辑已在计算属性中处理
+// 生成分类数据
+function generateCategories() {
+  const categoryMap = new Map()
+  
+  // 统计每个分类的资源数量
+  resources.value.forEach(resource => {
+    const category = resource.category || 'other'
+    const count = categoryMap.get(category) || 0
+    categoryMap.set(category, count + 1)
+  })
+  
+  // 构建分类列表
+  const categoryList = [
+    { id: 'all', name: '全部资源', icon: 'FolderOpened', count: resources.value.length }
+  ]
+  
+  categoryMap.forEach((count, id) => {
+    // 根据分类ID设置图标和名称
+    const categoryInfo = {
+      id,
+      name: getCategoryName(id),
+      icon: getCategoryIcon(id),
+      count
+    }
+    categoryList.push(categoryInfo)
+  })
+  
+  categories.value = categoryList
 }
 
-const getResourceIcon = (type) => {
+// 获取分类图标
+function getCategoryIcon(category) {
+  const icons = {
+    'teaching_material': 'Document',
+    'exercise': 'EditPen',
+    'other': 'Folder'
+  }
+  return icons[category] || 'Document'
+}
+
+// 获取资源图标
+function getResourceIcon(type) {
   const icons = {
     video: 'VideoPlay',
     document: 'Document',
@@ -182,6 +186,7 @@ const getResourceIcon = (type) => {
   return icons[type] || 'Document'
 }
 
+// 获取分类类型
 const getCategoryType = (category) => {
   const types = {
     'python-basic': 'primary',
@@ -192,22 +197,50 @@ const getCategoryType = (category) => {
   return types[category] || 'info'
 }
 
+// 获取分类名称
 const getCategoryName = (category) => {
   const categoryObj = categories.value.find(c => c.id === category)
   return categoryObj ? categoryObj.name : '未知'
 }
 
-const viewResource = (resource) => {
-  console.log('查看资源:', resource.title)
+// 文件大小格式化函数
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-const downloadResource = (resource) => {
-  console.log('下载资源:', resource.title)
+// 下载资源函数 - 只保留一个与后端API通信的版本
+function downloadResource(resource) {
+  try {
+    resourceAPI.downloadResource(resource.id)
+    if (typeof window !== 'undefined' && window.$message) {
+      window.$message.success(`正在下载: ${resource.title}`)
+    }
+  } catch (error) {
+    console.error('下载资源错误:', error)
+    if (typeof window !== 'undefined' && window.$message) {
+      window.$message.error('下载失败')
+    }
+  }
 }
 
-const addToFavorites = (resource) => {
-  console.log('收藏资源:', resource.title)
+// 修改搜索和分类选择方法，重新获取资源
+const handleSearch = () => {
+  fetchResources()
 }
+
+const selectCategory = (categoryId) => {
+  selectedCategory.value = categoryId
+  fetchResources()
+}
+
+// 初始加载资源
+fetchResources()
 </script>
 
 <style lang="scss" scoped>
@@ -368,7 +401,11 @@ const addToFavorites = (resource) => {
 
 .resource-actions {
   display: flex;
-  gap: $spacing-sm;
+  justify-content: flex-end;
+}
+
+.download-btn {
+  width: 120px;
 }
 
 /* 响应式设计 */
