@@ -43,6 +43,7 @@ def init_db():
     """
     # 导入所有模型以确保它们被注册
     from app.models.user import User
+    from app.models.question import Question, QuestionCategory, QuestionReply, QuestionSummary
     
     # 创建所有表
     Base.metadata.create_all(bind=engine)

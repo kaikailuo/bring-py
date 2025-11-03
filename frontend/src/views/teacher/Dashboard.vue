@@ -185,6 +185,103 @@
         </div>
       </div>
 
+      <!-- 学生问题总结 -->
+      <div class="question-summary-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <el-icon><DataAnalysis /></el-icon>
+            学生问题智能总结
+          </h2>
+          <div class="summary-actions">
+            <el-button type="primary" @click="generateSummary">
+              <el-icon><Magic /></el-icon>
+              生成智能总结
+            </el-button>
+            <el-button @click="$router.push('/teacher/question-analysis')">
+              详细分析
+            </el-button>
+          </div>
+        </div>
+        
+        <div class="summary-content">
+          <div class="summary-cards">
+            <div class="summary-card education-card" v-for="summary in questionSummaries" :key="summary.id">
+              <div class="summary-header">
+                <div class="summary-icon">
+                  <el-icon><Document /></el-icon>
+                </div>
+                <div class="summary-info">
+                  <h3 class="summary-title">{{ summary.title }}</h3>
+                  <p class="summary-period">{{ summary.period_start }} 至 {{ summary.period_end }}</p>
+                </div>
+                <div class="summary-stats">
+                  <el-tag type="success">{{ summary.resolved_count }}/{{ summary.question_count }} 已解决</el-tag>
+                </div>
+              </div>
+              
+              <div class="summary-preview">
+                <p>{{ summary.content.substring(0, 100) }}...</p>
+              </div>
+              
+              <div class="summary-actions">
+                <el-button size="small" @click="viewSummaryDetail(summary)">
+                  查看详情
+                </el-button>
+                <el-button size="small" type="primary" @click="downloadSummary(summary)">
+                  下载报告
+                </el-button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 问题统计概览 -->
+          <div class="question-stats education-card">
+            <div class="stats-header">
+              <h3>问题统计概览</h3>
+              <el-button size="small" @click="refreshQuestionStats">
+                <el-icon><Refresh /></el-icon>
+                刷新
+              </el-button>
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-item">
+                <div class="stat-value">{{ questionStats.total_questions || 0 }}</div>
+                <div class="stat-label">总问题数</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ questionStats.pending_questions || 0 }}</div>
+                <div class="stat-label">待处理</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ questionStats.resolved_questions || 0 }}</div>
+                <div class="stat-label">已解决</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ questionStats.answered_questions || 0 }}</div>
+                <div class="stat-label">已回答</div>
+              </div>
+            </div>
+            
+            <!-- 分类分布 -->
+            <div class="category-distribution" v-if="questionStats.category_distribution">
+              <h4>问题分类分布</h4>
+              <div class="category-list">
+                <div class="category-item" v-for="(count, category) in questionStats.category_distribution" :key="category">
+                  <span class="category-name">{{ category }}</span>
+                  <el-progress 
+                    :percentage="(count / questionStats.total_questions) * 100" 
+                    :stroke-width="8"
+                    :show-text="false"
+                  />
+                  <span class="category-count">{{ count }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 待处理事项 -->
       <div class="pending-section">
         <div class="section-header">
@@ -227,18 +324,31 @@
         </div>
       </div>
     </div>
+    
+    <!-- 问题总结生成对话框 -->
+    <QuestionSummaryDialog 
+      v-model="showSummaryDialog" 
+      @generate="handleSummaryGenerate"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
+import QuestionSummaryDialog from '@/components/QuestionSummaryDialog.vue'
 
 const userStore = useUserStore()
 
 // 响应式数据
 const selectedDateRange = ref([])
 const progressTimeRange = ref('month')
+
+// 问题总结相关数据
+const questionSummaries = ref([])
+const questionStats = ref({})
+const summaryLoading = ref(false)
+const showSummaryDialog = ref(false)
 
 const metrics = ref([
   {
@@ -471,8 +581,105 @@ const handleAllPending = () => {
   console.log('批量处理待办事项')
 }
 
+// 问题总结相关方法
+const generateSummary = () => {
+  showSummaryDialog.value = true
+}
+
+const handleSummaryGenerate = async (summaryData) => {
+  summaryLoading.value = true
+  try {
+    console.log('生成问题总结:', summaryData)
+    // 这里应该调用API生成总结
+    // 模拟API调用
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // 刷新总结列表
+    await loadQuestionSummaries()
+    
+    ElMessage.success('问题总结生成成功')
+  } catch (error) {
+    console.error('生成总结失败:', error)
+    ElMessage.error('生成总结失败')
+  } finally {
+    summaryLoading.value = false
+  }
+}
+
+const loadQuestionSummaries = async () => {
+  try {
+    // 这里应该调用API获取总结列表
+    console.log('加载问题总结列表')
+    // 模拟数据
+    questionSummaries.value = [
+      {
+        id: 1,
+        title: '本周问题总结',
+        content: '本周共收到45个学生问题，主要集中在Python语法错误和算法理解方面。已解决38个问题，解决率为84.4%。',
+        period_start: '2024-01-15',
+        period_end: '2024-01-21',
+        question_count: 45,
+        resolved_count: 38
+      },
+      {
+        id: 2,
+        title: '本月问题总结',
+        content: '本月共收到156个学生问题，问题分类分布较为均匀。已解决142个问题，解决率为91.0%。',
+        period_start: '2024-01-01',
+        period_end: '2024-01-31',
+        question_count: 156,
+        resolved_count: 142
+      }
+    ]
+  } catch (error) {
+    console.error('加载总结失败:', error)
+  }
+}
+
+const loadQuestionStats = async () => {
+  try {
+    // 这里应该调用API获取问题统计
+    console.log('加载问题统计')
+    // 模拟数据
+    questionStats.value = {
+      total_questions: 156,
+      pending_questions: 12,
+      resolved_questions: 142,
+      answered_questions: 145,
+      category_distribution: {
+        'Python基础': 45,
+        '数据结构': 38,
+        '算法': 32,
+        '环境配置': 25,
+        '其他': 16
+      }
+    }
+  } catch (error) {
+    console.error('加载统计失败:', error)
+  }
+}
+
+const refreshQuestionStats = async () => {
+  await loadQuestionStats()
+  ElMessage.success('统计数据已刷新')
+}
+
+const viewSummaryDetail = (summary) => {
+  console.log('查看总结详情:', summary.title)
+  // 跳转到详细页面
+  this.$router.push(`/teacher/question-analysis/${summary.id}`)
+}
+
+const downloadSummary = (summary) => {
+  console.log('下载总结报告:', summary.title)
+  // 实现下载功能
+  ElMessage.success('报告下载已开始')
+}
+
 onMounted(() => {
   // 初始化数据
+  loadQuestionSummaries()
+  loadQuestionStats()
 })
 </script>
 
@@ -949,9 +1156,171 @@ onMounted(() => {
   gap: $spacing-sm;
 }
 
+/* 问题总结样式 */
+.question-summary-section {
+  margin-bottom: $spacing-xxl;
+}
+
+.summary-actions {
+  display: flex;
+  gap: $spacing-md;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: $spacing-lg;
+}
+
+.summary-card {
+  padding: $spacing-xl;
+}
+
+.summary-header {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: $education-blue;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.summary-info {
+  flex: 1;
+}
+
+.summary-title {
+  font-size: $font-size-lg;
+  font-weight: bold;
+  color: $text-primary;
+  margin: 0 0 $spacing-xs 0;
+}
+
+.summary-period {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  margin: 0;
+}
+
+.summary-stats {
+  flex-shrink: 0;
+}
+
+.summary-preview {
+  margin-bottom: $spacing-lg;
+}
+
+.summary-preview p {
+  color: $text-secondary;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.summary-actions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.question-stats {
+  padding: $spacing-xl;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+}
+
+.stats-header h3 {
+  font-size: $font-size-lg;
+  font-weight: bold;
+  color: $text-primary;
+  margin: 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: $spacing-lg;
+  margin-bottom: $spacing-lg;
+}
+
+.stat-item {
+  text-align: center;
+  padding: $spacing-md;
+  background: $bg-secondary;
+  border-radius: $border-radius;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.stat-label {
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
+.category-distribution h4 {
+  font-size: $font-size-md;
+  font-weight: 500;
+  color: $text-primary;
+  margin: 0 0 $spacing-md 0;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.category-name {
+  min-width: 80px;
+  font-size: $font-size-sm;
+  color: $text-primary;
+}
+
+.category-count {
+  min-width: 30px;
+  text-align: right;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-cards {
     grid-template-columns: 1fr;
   }
 }

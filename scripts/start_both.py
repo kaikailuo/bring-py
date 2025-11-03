@@ -47,7 +47,10 @@ def main():
         print("\n✅ 服务启动完成！")
         print("📖 后端API文档: http://localhost:8000/docs")
         print("🌐 前端应用: http://localhost:5173")
-        print("🧪 登录测试页面: http://localhost:5173/test-login")
+        print("🔧 如果遇到 'fail to fetch' 错误，请检查：")
+        print("   1. 后端是否在8000端口正常运行")
+        print("   2. 前端是否在5173端口正常运行")
+        print("   3. 浏览器控制台是否有CORS错误")
         print("\n按 Ctrl+C 停止所有服务")
         
         # 等待进程
