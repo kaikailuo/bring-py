@@ -43,6 +43,9 @@ def init_db():
     """
     # 导入所有模型以确保它们被注册
     from app.models.user import User
+    from app.models.post import Post
+    from app.models.comment import Comment
+    from app.models.favorite import Favorite
     
     # 创建所有表
     Base.metadata.create_all(bind=engine)

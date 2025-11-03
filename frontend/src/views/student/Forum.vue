@@ -88,11 +88,11 @@
                   <el-icon><View /></el-icon>
                   {{ post.views }}
                 </span>
-                <span class="stat-item">
+                <span class="stat-item" @click="showComments(post)" style="cursor: pointer;">
                   <el-icon><ChatDotRound /></el-icon>
                   {{ post.replies }}
                 </span>
-                <span class="stat-item">
+                <span class="stat-item" @click="toggleFavorite(post)" :class="{ 'favorited': post.isFavorited }" style="cursor: pointer;">
                   <el-icon><Star /></el-icon>
                   {{ post.likes }}
                 </span>
@@ -138,22 +138,100 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="showNewPostDialog = false">取消</el-button>
-          <el-button type="primary" @click="submitNewPost">发布</el-button>
+          <el-button @click="showNewPostDialog = false" :disabled="submitting">取消</el-button>
+          <el-button type="primary" @click="submitNewPost" :loading="submitting">发布</el-button>
         </div>
       </template>
+    </el-dialog>
+
+    <!-- 评论对话框 -->
+    <el-dialog
+      v-model="showCommentDialog"
+      :title="`评论 - ${currentPost?.title || ''}`"
+      width="800px"
+    >
+      <div class="comments-section" v-if="currentPost">
+        <!-- 评论输入框 -->
+        <div class="comment-input-area">
+          <el-input
+            v-model="newComment"
+            type="textarea"
+            :rows="3"
+            placeholder="写下你的评论..."
+          />
+          <div class="comment-actions">
+            <el-button type="primary" @click="submitComment" :loading="submittingComment">
+              发表评论
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 评论列表 -->
+        <div class="comments-list">
+          <div class="comment-item" v-for="comment in comments" :key="comment.id">
+            <div class="comment-header">
+              <el-avatar :size="32">
+                <el-icon><User /></el-icon>
+              </el-avatar>
+              <div class="comment-author">
+                <span class="author-name">{{ comment.author.name }}</span>
+                <span class="comment-time">{{ comment.time }}</span>
+              </div>
+            </div>
+            <div class="comment-content">{{ comment.content }}</div>
+            <div class="comment-footer">
+              <span class="comment-action" @click="replyToComment(comment)" style="cursor: pointer;">
+                <el-icon><ChatDotRound /></el-icon>
+                回复
+              </span>
+              <span class="comment-action" @click="likeComment(comment)" style="cursor: pointer;">
+                <el-icon><Star /></el-icon>
+                {{ comment.likes }}
+              </span>
+            </div>
+            
+            <!-- 回复列表 -->
+            <div class="replies-list" v-if="comment.replies && comment.replies.length > 0">
+              <div class="reply-item" v-for="reply in comment.replies" :key="reply.id">
+                <el-avatar :size="24">
+                  <el-icon><User /></el-icon>
+                </el-avatar>
+                <div class="reply-content">
+                  <span class="reply-author">{{ reply.author.name }}：</span>
+                  <span class="reply-text">{{ reply.content }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="comments.length === 0" class="no-comments">
+            暂无评论，快来抢沙发吧！
+          </div>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import axios from 'axios'
 
 // 响应式数据
 const selectedCategory = ref('all')
 const sortBy = ref('latest')
 const showNewPostDialog = ref(false)
 const newPostFormRef = ref()
+const submitting = ref(false)
+
+// 评论相关
+const showCommentDialog = ref(false)
+const currentPost = ref(null)
+const comments = ref([])
+const newComment = ref('')
+const submittingComment = ref(false)
+const replyingTo = ref(null)
 
 const newPost = ref({
   category: '',
@@ -297,17 +375,236 @@ const handleNewPostClose = () => {
 const submitNewPost = async () => {
   if (!newPostFormRef.value) return
   
+  // 如果正在提交，防止重复点击
+  if (submitting.value) return
+  
   try {
+    // 验证表单
     await newPostFormRef.value.validate()
     
-    // 模拟发布
-    console.log('发布新帖:', newPost.value)
-    
+    submitting.value = true
+
+    // 获取token
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    // 发送请求到后端
+    const res = await axios.post("http://127.0.0.1:8000/api/posts/", {
+      title: newPost.value.title,
+      content: newPost.value.content,
+      category: newPost.value.category,
+      tags: newPost.value.tags ? newPost.value.tags.split(',').map(t => t.trim()).filter(t => t) : []
+    }, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    // 成功提示
+    ElMessage.success("✅ 发布成功！")
+
+    // 关闭弹窗
     showNewPostDialog.value = false
+
+    // 重置表单
     handleNewPostClose()
-    
+
+    // 重新加载帖子列表
+    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
+    if (postsRes.data && postsRes.data.data) {
+      posts.value = postsRes.data.data
+    }
+
   } catch (error) {
-    console.error('发布失败:', error)
+    // 表单验证失败
+    if (error && typeof error === 'object' && !error.message) {
+      ElMessage.warning('请完善表单信息')
+    } else {
+      console.error('发布失败:', error)
+      
+      // 详细错误信息
+      let errorMessage = '发布失败，请稍后重试'
+      
+      if (error.response) {
+        // 服务器返回了错误响应
+        const status = error.response.status
+        const detail = error.response.data?.detail || error.response.data?.message
+        
+        if (status === 401 || detail?.includes('credentials') || detail?.includes('validate')) {
+          // 认证失败，清除token并提示重新登录
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          errorMessage = '登录已过期，请重新登录'
+          ElMessage.error(errorMessage)
+          // 延迟跳转到登录页
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 1500)
+          return
+        }
+        
+        errorMessage = detail || `服务器错误: ${status}`
+        console.error('服务器响应:', error.response.data)
+      } else if (error.request) {
+        // 请求已发出但没有收到响应
+        errorMessage = '无法连接到服务器，请检查后端服务是否运行（http://127.0.0.1:8000）'
+        console.error('请求错误:', error.request)
+      } else {
+        // 其他错误
+        errorMessage = error.message || errorMessage
+        console.error('错误信息:', error.message)
+      }
+      
+      ElMessage.error(errorMessage)
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 显示评论对话框
+const showComments = async (post) => {
+  currentPost.value = post
+  showCommentDialog.value = true
+  newComment.value = ''
+  replyingTo.value = null
+  
+  // 加载评论列表
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.get(`http://127.0.0.1:8000/api/posts/${post.id}/comments/`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.data) {
+      comments.value = res.data.data
+    }
+  } catch (error) {
+    console.error('加载评论失败:', error)
+    comments.value = []
+  }
+}
+
+// 提交评论
+const submitComment = async () => {
+  if (!newComment.value.trim()) {
+    ElMessage.warning('请输入评论内容')
+    return
+  }
+  
+  if (!currentPost.value) return
+  
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+  
+  try {
+    submittingComment.value = true
+    
+    await axios.post(
+      `http://127.0.0.1:8000/api/posts/${currentPost.value.id}/comments/`,
+      {
+        content: newComment.value,
+        parent_id: replyingTo.value?.id || null
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+    
+    ElMessage.success('评论发表成功！')
+    newComment.value = ''
+    replyingTo.value = null
+    
+    // 重新加载评论列表
+    await showComments(currentPost.value)
+    
+    // 刷新帖子列表
+    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
+    if (postsRes.data && postsRes.data.data) {
+      posts.value = postsRes.data.data
+    }
+  } catch (error) {
+    console.error('发表评论失败:', error)
+    ElMessage.error(error?.response?.data?.detail || '发表评论失败')
+  } finally {
+    submittingComment.value = false
+  }
+}
+
+// 回复评论
+const replyToComment = (comment) => {
+  replyingTo.value = comment
+  newComment.value = `@${comment.author.name} `
+}
+
+// 点赞评论
+const likeComment = async (comment) => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+  
+  try {
+    const res = await axios.put(
+      `http://127.0.0.1:8000/api/comments/${comment.id}/like`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+    if (res.data && res.data.data) {
+      comment.likes = res.data.data.likes
+      ElMessage.success('点赞成功')
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+    ElMessage.error('点赞失败')
+  }
+}
+
+// 收藏/取消收藏
+const toggleFavorite = async (post) => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+  
+  try {
+    const res = await axios.post(
+      `http://127.0.0.1:8000/api/posts/${post.id}/favorite`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+    
+    if (res.data && res.data.data) {
+      post.isFavorited = res.data.data.is_favorited
+      ElMessage.success(res.data.message)
+      
+      // 更新点赞数（这里用收藏数替代，实际应该分开）
+      if (post.isFavorited) {
+        post.likes = (post.likes || 0) + 1
+      } else {
+        post.likes = Math.max(0, (post.likes || 0) - 1)
+      }
+    }
+  } catch (error) {
+    console.error('收藏操作失败:', error)
+    ElMessage.error(error?.response?.data?.detail || '操作失败')
   }
 }
 </script>
@@ -546,6 +843,127 @@ const submitNewPost = async () => {
   gap: $spacing-xs;
   font-size: $font-size-sm;
   color: $text-secondary;
+}
+
+/* 评论相关样式 */
+.comments-section {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.comment-input-area {
+  margin-bottom: $spacing-xl;
+  padding-bottom: $spacing-lg;
+  border-bottom: 1px solid $border-color;
+}
+
+.comment-actions {
+  margin-top: $spacing-md;
+  text-align: right;
+}
+
+.comments-list {
+  padding-top: $spacing-lg;
+}
+
+.comment-item {
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  background: #f5f5f5;
+  border-radius: $border-radius;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.comment-author {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.author-name {
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.comment-time {
+  font-size: $font-size-xs;
+  color: $text-light;
+}
+
+.comment-content {
+  margin: $spacing-sm 0;
+  color: $text-secondary;
+  line-height: 1.6;
+}
+
+.comment-footer {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-sm;
+}
+
+.comment-action {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  transition: color 0.3s;
+  
+  &:hover {
+    color: $primary-color;
+  }
+}
+
+.replies-list {
+  margin-top: $spacing-md;
+  margin-left: $spacing-xl;
+  padding-left: $spacing-lg;
+  border-left: 2px solid $border-color;
+}
+
+.reply-item {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+  padding: $spacing-sm;
+  background: white;
+  border-radius: $border-radius;
+}
+
+.reply-content {
+  flex: 1;
+  font-size: $font-size-sm;
+}
+
+.reply-author {
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.reply-text {
+  color: $text-secondary;
+}
+
+.no-comments {
+  text-align: center;
+  padding: $spacing-xxl;
+  color: $text-light;
+}
+
+.stat-item.favorited {
+  color: #ffd700;
+  
+  .el-icon {
+    color: #ffd700;
+  }
 }
 
 /* 响应式设计 */
