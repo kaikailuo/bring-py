@@ -1,8 +1,21 @@
 <template>
   <div class="practice-page">
+    
+    <!-- 顶部标题栏 -->
     <div class="practice-header">
-      <h1 class="page-title">编程练习</h1>
-      <div class="header-actions">
+      <h1 class="page-title">
+        <!-- 当在练习模式时显示返回按钮 -->
+        <el-button 
+          v-if="mode === 'practice'"
+          type="text"
+          icon="ArrowLeft"
+          @click="goBack"
+          style="margin-right: 8px;"
+        />
+        编程练习
+      </h1>
+
+      <div class="header-actions" v-if="mode === 'practice'">
         <el-select v-model="selectedDifficulty" placeholder="选择难度" style="width: 120px">
           <el-option label="全部" value="all" />
           <el-option label="简单" value="easy" />
@@ -19,8 +32,39 @@
       </div>
     </div>
 
-    <div class="practice-content">
-      <!-- 代码编辑器区域 -->
+    <!-- 题目选择界面 -->
+    <div v-if="mode === 'select'" class="problems-sidebar full">
+      <div class="sidebar-header">
+        <h3>选择一个题目开始练习</h3>
+        <el-button size="small" @click="refreshProblems">
+          <el-icon><Refresh /></el-icon>
+        </el-button>
+      </div>
+      
+      <div class="problems-list">
+        <div 
+          class="problem-item"
+          v-for="problem in filteredProblems"
+          :key="problem.id"
+          @click="enterPractice(problem)"
+        >
+          <div class="problem-info">
+            <div class="problem-title">{{ problem.title }}</div>
+            <div class="problem-meta">
+              <el-tag size="small" :type="getDifficultyType(problem.difficulty)">
+                {{ getDifficultyText(problem.difficulty) }}
+              </el-tag>
+              <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 练习界面（编辑器 + 题目和输出） -->
+    <div v-if="mode === 'practice'" class="practice-content">
+      <!-- 左侧：代码编辑器 -->
       <div class="editor-section">
         <div class="editor-header">
           <h2 class="section-title">代码编辑器</h2>
@@ -68,7 +112,7 @@
         </div>
       </div>
 
-      <!-- 题目和输出区域 -->
+      <!-- 右侧：题目描述 + 输出 + AI助手 -->
       <div class="content-section">
         <el-tabs v-model="activeTab" class="content-tabs">
           <el-tab-pane label="题目描述" name="problem">
@@ -215,51 +259,26 @@
       </div>
     </div>
 
-    <!-- 题目列表侧边栏 -->
-    <div class="problems-sidebar">
-      <div class="sidebar-header">
-        <h3>题目列表</h3>
-        <el-button size="small" @click="refreshProblems">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
-      
-      <div class="problems-list">
-        <div 
-          class="problem-item"
-          v-for="problem in filteredProblems"
-          :key="problem.id"
-          :class="{ active: currentProblem?.id === problem.id }"
-          @click="selectProblem(problem)"
-        >
-          <div class="problem-info">
-            <div class="problem-title">{{ problem.title }}</div>
-            <div class="problem-meta">
-              <el-tag size="small" :type="getDifficultyType(problem.difficulty)">
-                {{ getDifficultyText(problem.difficulty) }}
-              </el-tag>
-              <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
-            </div>
-          </div>
-          <div class="problem-status">
-            <el-icon v-if="problem.status === 'completed'" class="completed">
-              <Check />
-            </el-icon>
-            <el-icon v-else-if="problem.status === 'attempted'" class="attempted">
-              <Clock />
-            </el-icon>
-            <el-icon v-else class="not-started">
-              <Circle />
-            </el-icon>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+
+const mode = ref('select') // 'select' 表示题目选择界面，'practice' 表示练习界面
+
+const enterPractice = (problem) => {
+  selectProblem(problem)
+  mode.value = 'practice'
+}
+
+const goBack = () => {
+  mode.value = 'select'
+  currentProblem.value = null
+  currentCode.value = ''
+  output.value = []
+  testResults.value = []
+}
 
 // 响应式数据
 const selectedDifficulty = ref('all')
@@ -942,6 +961,23 @@ onMounted(() => {
   
   .example {
     flex-direction: column;
+  }
+}
+.full {
+  grid-column: 1 / -1;
+  padding: 2rem;
+}
+
+.problems-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.problem-item {
+  cursor: pointer;
+  transition: 0.2s;
+  &:hover {
+    background-color: #f5f7fa;
   }
 }
 </style>
