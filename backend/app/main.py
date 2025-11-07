@@ -29,6 +29,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router, prefix="/api")
+# 注册题目管理相关路由，统一由 main 统一加上 /api 前缀，router 内使用 /problems
 app.include_router(problems_router, prefix="/api")
 
 @app.get("/")
