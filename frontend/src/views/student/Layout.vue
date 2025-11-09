@@ -9,12 +9,13 @@
         </div>
       </div>
       
-      <div class="header-center">
+  <div class="header-center">
         <el-menu
           :default-active="activeMenu"
           mode="horizontal"
           class="header-menu"
           @select="handleMenuSelect"
+          :router="true"
         >
           <el-menu-item index="/student/dashboard">
             <el-icon><House /></el-icon>
@@ -28,12 +29,24 @@
             <el-icon><FolderOpened /></el-icon>
             <span>教学资源</span>
           </el-menu-item>
-          <el-menu-item index="/student/forum">
-            <el-icon><ChatDotRound /></el-icon>
-            <span>互动交流</span>
-          </el-menu-item>
+          <el-sub-menu index="interaction">
+            <template #title>
+              <el-icon><ChatDotRound /></el-icon>
+              <span>互动交流</span>
+            </template>
+            <el-menu-item index="/student/forum">
+              <el-icon><ChatDotRound /></el-icon>
+              <span>论坛</span>
+            </el-menu-item>
+            <el-menu-item index="/student/badges">
+              <el-icon><Trophy /></el-icon>
+              <span>徽章墙</span>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </div>
+      
+
       
       <div class="header-right">
         <el-dropdown @command="handleCommand">
@@ -233,7 +246,7 @@
               最新通知
             </h3>
             <div class="notification-list">
-              <div class="notification-item">
+              <div class="notification-item" @click="handleBadgeNotificationClick">
                 <div class="notification-icon">
                   <el-icon><Trophy /></el-icon>
                 </div>
@@ -317,11 +330,20 @@ const showAIAssistant = ref(false)
 const aiMessage = ref('')
 
 // 计算属性
-const activeMenu = computed(() => route.path)
+const activeMenu = computed(() => {
+  // For submenu items, return the full path to ensure correct highlighting
+  return route.path
+})
 
 // 方法
 const handleMenuSelect = (index) => {
-  router.push(index)
+  // Element Plus menu with router="true" handles routing automatically
+  // This method is kept for any custom logic if needed
+}
+
+const handleBadgeNotificationClick = () => {
+  // 跳转到徽章页面，可以带上badgeId参数（这里使用示例徽章ID 5）
+  router.push('/student/badges?badgeId=5')
 }
 
 const handleCommand = async (command) => {
@@ -701,9 +723,14 @@ const sendAIMessage = () => {
   padding: $spacing-sm;
   border-radius: $border-radius;
   transition: background-color 0.3s ease;
+  cursor: pointer;
   
   &:hover {
     background: $bg-hover;
+  }
+  
+  &:active {
+    background: $border-color;
   }
 }
 
