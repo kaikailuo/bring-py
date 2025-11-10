@@ -5,13 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.auth.routes import router as auth_router
-<<<<<<< HEAD
 from app.api.post import router as post_router
 from app.api.comment import router as comment_router
 from app.api.favorite import router as favorite_router
-=======
 from app.api.problems.routes import router as problems_router
->>>>>>> feature-kaikai
 from app.utils.database import init_db
 import uvicorn
 
@@ -35,15 +32,12 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router, prefix="/api")
-<<<<<<< HEAD
 app.include_router(post_router, prefix="/api")
 app.include_router(comment_router, prefix="/api")
 app.include_router(favorite_router, prefix="/api")
 
-=======
 # 注册题目管理相关路由，统一由 main 统一加上 /api 前缀，router 内使用 /problems
 app.include_router(problems_router, prefix="/api")
->>>>>>> feature-kaikai
 
 @app.get("/")
 async def read_root():
