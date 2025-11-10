@@ -9,6 +9,7 @@ from app.api.post import router as post_router
 from app.api.comment import router as comment_router
 from app.api.favorite import router as favorite_router
 from app.api.problems.routes import router as problems_router
+from app.api.resources import router as resources_router  # 添加这一行
 from app.utils.database import init_db
 import uvicorn
 
@@ -35,6 +36,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(post_router, prefix="/api")
 app.include_router(comment_router, prefix="/api")
 app.include_router(favorite_router, prefix="/api")
+app.include_router(resources_router)  # 添加这一行，resources_router自身已有/api/resources前缀
 
 # 注册题目管理相关路由，统一由 main 统一加上 /api 前缀，router 内使用 /problems
 app.include_router(problems_router, prefix="/api")
