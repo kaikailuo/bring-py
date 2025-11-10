@@ -5,6 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.auth.routes import router as auth_router
+from app.api.post import router as post_router
+from app.api.comment import router as comment_router
+from app.api.favorite import router as favorite_router
 from app.utils.database import init_db
 import uvicorn
 
@@ -28,6 +31,9 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router, prefix="/api")
+app.include_router(post_router, prefix="/api")
+app.include_router(comment_router, prefix="/api")
+app.include_router(favorite_router, prefix="/api")
 
 
 @app.get("/")

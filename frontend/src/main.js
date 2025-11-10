@@ -8,6 +8,7 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import '@/styles/index.scss'
+import { install } from '@icon-park/vue-next/es/all';
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -26,3 +27,4 @@ const userStore = useUserStore()
 userStore.initializeUser()
 
 app.mount('#app')
+install(app);

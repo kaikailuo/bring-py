@@ -2,7 +2,7 @@
 用户相关的Pydantic数据验证模式
 """
 from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 from app.models.user import UserRole
 
@@ -123,7 +123,7 @@ class ApiResponse(BaseModel):
     """统一API响应模式"""
     code: int
     message: str
-    data: Optional[dict] = None
+    data: Optional[Union[dict, list]] = None
 
     @classmethod
     def success(cls, data=None, message="success"):
