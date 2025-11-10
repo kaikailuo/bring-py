@@ -5,6 +5,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.auth.routes import router as auth_router
+from app.api.post import router as post_router
+from app.api.comment import router as comment_router
+from app.api.favorite import router as favorite_router
+from app.api.problems.routes import router as problems_router
+from app.api.resources import router as resources_router  # 添加这一行
 from app.utils.database import init_db
 import uvicorn
 
@@ -20,7 +25,7 @@ app = FastAPI(
 # 配置CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"],  # 前端开发服务器地址
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # 前端开发服务器地址
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +33,13 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router, prefix="/api")
+app.include_router(post_router, prefix="/api")
+app.include_router(comment_router, prefix="/api")
+app.include_router(favorite_router, prefix="/api")
+app.include_router(resources_router)  # 添加这一行，resources_router自身已有/api/resources前缀
 
+# 注册题目管理相关路由，统一由 main 统一加上 /api 前缀，router 内使用 /problems
+app.include_router(problems_router, prefix="/api")
 
 @app.get("/")
 async def read_root():
