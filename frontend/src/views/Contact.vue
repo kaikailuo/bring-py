@@ -59,7 +59,7 @@
               <p class="contact-description">
                 访问我们的 GitHub 仓库，查看项目源码和最新更新
               </p>
-              <a href="https://github.com/your-org" target="_blank" class="contact-link">
+              <a href="https://github.com/kaikailuo/bring-py" target="_blank" class="contact-link">
                 <el-icon><Link /></el-icon>
                 访问 GitHub
               </a>
