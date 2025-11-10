@@ -20,6 +20,23 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # 用于数据库存储的相对路径根目录
 DB_PATH_PREFIX = "uploads/"
 
+# 文件类型和大小限制配置
+# 允许的文件类型映射表：{扩展名: (对应的ResourceType, 允许的MIME类型列表)}
+ALLOWED_FILE_TYPES = {
+    'ppt': (ResourceType.PPT, ['application/vnd.ms-powerpoint']),
+    'pptx': (ResourceType.PPT, ['application/vnd.openxmlformats-officedocument.presentationml.presentation']),
+    'pdf': (ResourceType.PDF, ['application/pdf']),
+    'doc': (ResourceType.DOC, ['application/msword']),
+    'docx': (ResourceType.DOC, ['application/vnd.openxmlformats-officedocument.wordprocessingml.document']),
+    'mp4': (ResourceType.VIDEO, ['video/mp4']),
+    'avi': (ResourceType.VIDEO, ['video/x-msvideo']),
+    'mov': (ResourceType.VIDEO, ['video/quicktime']),
+    'wmv': (ResourceType.VIDEO, ['video/x-ms-wmv']),
+    # 可以根据需要添加更多文件类型
+}
+
+# 最大允许的文件大小（字节），这里设置为100MB
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 class ResourceService:
     """资源服务类"""
@@ -38,7 +55,8 @@ class ResourceService:
         return resource
     
     def get_resources(self, page: int = 1, page_size: int = 10, search: str = "", 
-                     type_filter: str = None, category_filter: str = None, user: User = None) -> dict:
+                     type_filter: str = None, category_filter: str = None, 
+                     course_id_filter: str = None, user: User = None) -> dict:
         """获取资源列表，支持分页、搜索和筛选"""
         query = self.db.query(Resource)
         
@@ -60,6 +78,10 @@ class ResourceService:
         if category_filter:
             query = query.filter(Resource.category == category_filter)
         
+        # 课程ID筛选
+        if course_id_filter:
+            query = query.filter(Resource.course_id == course_id_filter)
+        
         # 总数
         total = query.count()
         
@@ -73,11 +95,48 @@ class ResourceService:
             "page_size": page_size
         }
     
+    def validate_file(self, file: UploadFile) -> tuple[str, ResourceType]:
+        """验证文件类型和大小"""
+        # 获取文件扩展名
+        file_extension = os.path.splitext(file.filename)[1].lower().lstrip('.')
+        
+        # 验证文件类型
+        if file_extension not in ALLOWED_FILE_TYPES:
+            allowed_extensions = ', '.join(ALLOWED_FILE_TYPES.keys())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的文件类型。允许的文件类型: {allowed_extensions}"
+            )
+        
+        # 验证MIME类型
+        allowed_mime_types = ALLOWED_FILE_TYPES[file_extension][1]
+        if file.content_type and file.content_type not in allowed_mime_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"文件MIME类型不匹配。请确保上传的是正确的{file_extension.upper()}文件。"
+            )
+        
+        # 获取资源类型
+        resource_type = ALLOWED_FILE_TYPES[file_extension][0]
+        
+        # 验证文件大小
+        # 注意：这里我们假设file对象有size属性，如果没有，需要在保存文件后验证
+        if hasattr(file.file, 'size') and file.file.size > MAX_FILE_SIZE:
+            max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"文件大小超过限制。最大允许大小: {max_size_mb}MB"
+            )
+        
+        return file_extension, resource_type
+    
     def create_resource(self, resource_data: ResourceCreate, file: UploadFile, user: User) -> Resource:
         """创建新资源"""
+        # 验证文件类型和大小
+        file_extension, validated_type = self.validate_file(file)
+        
         # 生成唯一的文件名，避免冲突
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        file_extension = os.path.splitext(file.filename)[1].lower()
         file_name = f"{timestamp}_{user.id}_{os.path.basename(file.filename)}"
         file_path = os.path.join(UPLOAD_DIR, file_name)
         
@@ -93,6 +152,18 @@ class ResourceService:
         finally:
             file.file.close()
         
+        # 再次验证文件大小（确保实际保存的文件符合大小限制）
+        actual_size = os.path.getsize(file_path)
+        if actual_size > MAX_FILE_SIZE:
+            # 删除已保存的文件
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            max_size_mb = MAX_FILE_SIZE / (1024 * 1024)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"文件大小超过限制。最大允许大小: {max_size_mb}MB"
+            )
+        
         # 创建资源记录 - 存储相对路径，不存储绝对路径
         try:
             # 存储相对路径而不是绝对路径
@@ -101,9 +172,9 @@ class ResourceService:
                 description=resource_data.description,
                 file_path=f"{DB_PATH_PREFIX}{file_name}",  # 存储相对路径
                 file_name=file.filename,
-                format=file_extension[1:] if file_extension else "unknown",
-                size=os.path.getsize(file_path),
-                type=resource_data.type,
+                format=file_extension if file_extension else "unknown",
+                size=actual_size,
+                type=validated_type,  # 使用验证后的类型，而不是用户提供的类型
                 category=resource_data.category,
                 created_by=user.id,
                 course_id=resource_data.course_id,

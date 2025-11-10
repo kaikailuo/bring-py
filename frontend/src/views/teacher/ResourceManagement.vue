@@ -137,19 +137,30 @@ width="500px"
               ></el-input>
             </el-form-item>
             <el-form-item label="资源类型">
-              <el-select v-model="resourceMeta.type">
-                <option value="ppt">PPT 课件</option>
-                <option value="pdf">PDF 讲义</option>
-                <option value="doc">文档作业</option>
-                <option value="video">教学视频</option>
-                <option value="other">其他资源</option>
+              <el-select v-model="resourceMeta.type" placeholder="选择资源类型">
+                <el-option label="PPT 课件" value="ppt" />
+                <el-option label="PDF 讲义" value="pdf" />
+                <el-option label="文档作业" value="doc" />
+                <el-option label="教学视频" value="video" />
+                <el-option label="其他资源" value="other" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="资源分类">
+              <el-select v-model="resourceMeta.category" placeholder="选择分类">
+                <el-option label="课件" value="courseware" />
+                <el-option label="参考资料" value="reference" />
+                <el-option label="作业" value="assignment" />
+                <el-option label="其他" value="other" />
               </el-select>
             </el-form-item>
             <el-form-item label="课程关联">
-              <el-select v-model="resourceMeta.courseId" placeholder="可选">
-                <option value="101">高等数学（上）</option>
-                <option value="102">线性代数</option>
-                <option value="103">大学物理实验</option>
+              <el-select v-model="resourceMeta.courseId" placeholder="选择课程（可选）" clearable>
+                <el-option label="不关联课程" value="" />
+                <el-option label="全部" value="all" />
+                <el-option label="第一课" value="lesson1" />
+                <el-option label="高等数学（上）" value="101" />
+                <el-option label="线性代数" value="102" />
+                <el-option label="大学物理实验" value="103" />
               </el-select>
             </el-form-item>
             <el-form-item label="资源描述">
@@ -198,8 +209,10 @@ width="500px"
 import { resourceAPI } from '@/utils/api'
 
 export default {
+  
   data() {
     return {
+      
       // 将模拟数据替换为空数组，从后端获取
       resources: [],
       searchQuery: '',
@@ -215,7 +228,9 @@ export default {
       resourceMeta: {
         name: '',
         type: '',
+        category: 'courseware', // 使用后端支持的枚举值，默认为courseware
         courseId: '',
+        courseName: '',
         description: ''
       },
 
@@ -250,13 +265,17 @@ export default {
       // 排序
       result.sort((a, b) => {
         if (this.sortBy === 'date-desc') {
-          return new Date(b.uploadDate) - new Date(a.uploadDate);
+          const dateA = a.uploadDate ? new Date(a.uploadDate).getTime() : 0;
+          const dateB = b.uploadDate ? new Date(b.uploadDate).getTime() : 0;
+          return dateB - dateA; // 降序：最新的在前
         } else if (this.sortBy === 'date-asc') {
-          return new Date(a.uploadDate) - new Date(b.uploadDate);
+          const dateA = a.uploadDate ? new Date(a.uploadDate).getTime() : 0;
+          const dateB = b.uploadDate ? new Date(b.uploadDate).getTime() : 0;
+          return dateA - dateB; // 升序：最旧的在前
         } else if (this.sortBy === 'size-desc') {
-          return b.size - a.size;
+          return (b.size || 0) - (a.size || 0);
         } else if (this.sortBy === 'size-asc') {
-          return a.size - b.size;
+          return (a.size || 0) - (b.size || 0);
         }
         return 0;
       });
@@ -269,24 +288,45 @@ export default {
     async fetchResources() {
       try {
         const params = {
-          search: this.searchQuery,
-          type_filter: this.typeFilter,
           page: this.currentPage,
           page_size: this.pageSize
         }
         
+        // 只添加非空的参数
+        if (this.searchQuery && this.searchQuery.trim()) {
+          params.search = this.searchQuery.trim()
+        }
+        if (this.typeFilter && this.typeFilter.trim()) {
+          params.type_filter = this.typeFilter.trim()
+        }
+        
         const response = await resourceAPI.getResources(params)
-        // 修改：检查response.code === 200而不是0
-        if (response && response.code === 200 && response.data) {
-          this.resources = response.data.items || []
-          this.totalPages = Math.ceil((response.data.total || 0) / this.pageSize)
+        
+        // 检查响应格式
+        if (response && response.code === 200) {
+          // 进行字段映射转换：将后端返回的字段映射为前端期望的字段
+          const items = ((response.data && response.data.items) || []).map(item => ({
+            ...item,
+            // 将后端的 title 映射为前端的 name
+            name: item.title || item.file_name || '未命名资源',
+            // 将后端的 created_at 映射为前端的 uploadDate
+            uploadDate: item.created_at || item.updated_at || new Date().toISOString()
+          }))
+          this.resources = items
+          this.totalPages = Math.ceil((response.data?.total || 0) / this.pageSize)
         } else {
+          // 响应格式错误或请求失败
           this.resources = []
           this.totalPages = 0
-          throw new Error('Invalid response format')
+          const errorMessage = response?.message || '响应格式错误'
+          console.error('获取资源列表失败:', errorMessage, response)
+          throw new Error(errorMessage)
         }
       } catch (error) {
-        this.$message.error('获取资源列表失败')
+        this.resources = []
+        this.totalPages = 0
+        const errorMessage = error.message || '获取资源列表失败'
+        this.$message.error(errorMessage)
         console.error('获取资源列表错误:', error)
       }
     },
@@ -301,7 +341,7 @@ export default {
     openUploadModal() {
       this.uploadModalVisible = true;
       this.selectedFile = null;
-      this.resourceMeta = { name: '', type: '', courseId: '', description: '' };
+      this.resourceMeta = { name: '', type: '', category: 'courseware', courseId: '', courseName: '', description: '' };
     },
   
     // 关闭上传模态框
@@ -349,55 +389,73 @@ export default {
       }
     },
   
-    async handleUpload() {
-      if (!this.selectedFile) return
-      
-      this.uploading = true
-      try {
-        // 创建FormData对象，包含文件和所有元数据
-        const formData = new FormData()
-        formData.append('file', this.selectedFile.raw)
-        formData.append('title', this.resourceMeta.name || this.selectedFile.name)
-        formData.append('description', this.resourceMeta.description || '')
-        formData.append('type', this.resourceMeta.type || 'other')
-        formData.append('category', 'teaching') // 添加必填的category字段
-        if (this.resourceMeta.courseId) {
-          formData.append('course_id', this.resourceMeta.courseId)
-          // 如果有课程名称，也添加进去
-          if (this.resourceMeta.courseName) {
-            formData.append('course_name', this.resourceMeta.courseName)
-          }
-        }
-        
-        // 调用修复后的API方法
-        const response = await resourceAPI.uploadResource(formData)
-        
-        // 简化响应处理
-        if (response && response.code === 200) {
-          this.$message.success('资源上传成功')
-          this.closeUploadModal()
-          this.fetchResources() // 重新获取资源列表
-        } else {
-          this.$message.error('上传失败：' + (response?.message || '未知错误'))
-        }
-      } catch (error) {
-        this.$message.error('上传出错，请重试')
-        console.error('资源上传错误:', error)
-      } finally {
-        this.uploading = false
-      }
-    },
+   async handleUpload() {
+  if (!this.selectedFile) return
+  
+  this.uploading = true
+  try {
+    // 创建FormData对象，包含文件和所有元数据
+    const formData = new FormData()
+    // 文件字段名必须为 'file'，与后端期望一致
+    formData.append('file', this.selectedFile.raw)
+    // 元数据字段：title, description, type, category, course_id, course_name
+    formData.append('title', this.resourceMeta.name || this.selectedFile.name)
+    formData.append('description', this.resourceMeta.description || '')
+    formData.append('type', this.resourceMeta.type || 'other')
+    // 使用后端定义的ResourceCategory枚举值：courseware, reference, assignment, other
+    formData.append('category', this.resourceMeta.category || 'courseware')
     
-    // 恢复原来的downloadResource方法，保持简单
+    // 课程关联信息
+    if (this.resourceMeta.courseId) {
+      formData.append('course_id', this.resourceMeta.courseId)
+      // 根据课程ID自动设置课程名称
+      const courseMap = {
+        'all': '全部',
+        'lesson1': '第一课',
+        '101': '高等数学（上）',
+        '102': '线性代数',
+        '103': '大学物理实验'
+      }
+      const courseName = courseMap[this.resourceMeta.courseId] || this.resourceMeta.courseName
+      if (courseName) {
+        formData.append('course_name', courseName)
+      }
+    }
+    
+    // 调用API方法，直接使用传入的formData
+    const response = await resourceAPI.uploadResource(formData)
+    
+    // 简化响应处理
+    if (response && response.code === 200) {
+      this.$message.success('资源上传成功')
+      this.closeUploadModal()
+      this.fetchResources() // 重新获取资源列表
+    } else {
+      this.$message.error('上传失败：' + (response?.message || '未知错误'))
+    }
+  } catch (error) {
+    this.$message.error('上传出错，请重试')
+    console.error('资源上传错误:', error)
+  } finally {
+    this.uploading = false
+  }
+},
+
+    
+    // 下载资源方法
     async downloadResource(resource) {
       try {
-        // 直接调用修复后的API方法
-        await resourceAPI.downloadResource(resource.id)
+        // 使用resource对象中的file_name作为文件名（如果存在）
+        // 优先使用file_name，因为它包含完整的文件名和扩展名
+        const filename = resource.file_name || resource.title || null;
+        // 调用API方法，传递resourceId和文件名
+        await resourceAPI.downloadResource(resource.id, filename)
+        this.$message.success('下载开始')
       } catch (error) {
         this.$message.error('下载失败，请重试')
         console.error('资源下载错误:', error)
       }
-    }, // 添加缺失的逗号
+    },
     
     // 确认删除
     confirmDelete(resource) {
@@ -458,7 +516,19 @@ export default {
     
     // 格式化日期
     formatDate(dateStr) {
+      if (!dateStr) {
+        return '未知日期'
+      }
+      
+      // 处理ISO格式日期字符串（后端返回的created_at格式）
       const date = new Date(dateStr);
+      
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', dateStr);
+        return '日期格式错误'
+      }
+      
       return date.toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',

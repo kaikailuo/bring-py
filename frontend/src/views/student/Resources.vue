@@ -10,6 +10,11 @@
           style="width: 300px"
           @input="handleSearch"
         />
+        <el-select v-model="selectedCourse" placeholder="选择课程" style="width: 150px" @change="handleSearch">
+          <el-option label="全部课程" value="all" />
+          <el-option label="全部" value="all_course" />
+          <el-option label="第一课" value="lesson1" />
+        </el-select>
         <el-select v-model="selectedCategory" placeholder="选择分类" style="width: 150px">
           <el-option label="全部" value="all" />
           <el-option label="Python基础" value="python-basic" />
@@ -86,6 +91,7 @@ import { resourceAPI } from '@/utils/api'
 // 响应式数据 - 只声明一次
 const searchKeyword = ref('')
 const selectedCategory = ref('all')
+const selectedCourse = ref('all') // 添加课程选择
 // 初始化空数组，通过API获取真实数据
 const categories = ref([])
 const resources = ref([])
@@ -120,6 +126,14 @@ async function fetchResources() {
       page: 1,
       page_size: 100 // 获取足够多的资源
     }
+    
+    // 添加课程筛选
+    if (selectedCourse.value && selectedCourse.value !== 'all') {
+      // 如果选择的是"全部"课程（all_course），筛选course_id为"all"的资源
+      // 如果选择的是"第一课"（lesson1），筛选course_id为"lesson1"的资源
+      params.course_id_filter = selectedCourse.value === 'all_course' ? 'all' : selectedCourse.value
+    }
+    
     const response = await resourceAPI.getResources(params)
     if (response.code === 200) {
       resources.value = response.data.items || []
@@ -165,11 +179,12 @@ function generateCategories() {
   categories.value = categoryList
 }
 
-// 获取分类图标
+// 获取分类图标 - 使用后端支持的枚举值
 function getCategoryIcon(category) {
   const icons = {
-    'teaching_material': 'Document',
-    'exercise': 'EditPen',
+    'courseware': 'Document',
+    'reference': 'Reading',
+    'assignment': 'EditPen',
     'other': 'Folder'
   }
   return icons[category] || 'Document'
@@ -186,19 +201,29 @@ function getResourceIcon(type) {
   return icons[type] || 'Document'
 }
 
-// 获取分类类型
+// 获取分类类型 - 使用后端支持的枚举值
 const getCategoryType = (category) => {
   const types = {
-    'python-basic': 'primary',
-    'data-structure': 'success',
-    'algorithm': 'warning',
-    'oop': 'danger'
+    'courseware': 'primary',
+    'reference': 'success',
+    'assignment': 'warning',
+    'other': 'info'
   }
   return types[category] || 'info'
 }
 
-// 获取分类名称
+// 获取分类名称 - 将后端枚举值映射到中文名称
 const getCategoryName = (category) => {
+  const categoryNames = {
+    'courseware': '课件',
+    'reference': '参考资料',
+    'assignment': '作业',
+    'other': '其他'
+  }
+  // 先从映射表中查找，如果找不到再从categories中查找
+  if (categoryNames[category]) {
+    return categoryNames[category]
+  }
   const categoryObj = categories.value.find(c => c.id === category)
   return categoryObj ? categoryObj.name : '未知'
 }
@@ -217,9 +242,13 @@ const formatFileSize = (bytes) => {
 // 下载资源函数 - 只保留一个与后端API通信的版本
 function downloadResource(resource) {
   try {
-    resourceAPI.downloadResource(resource.id)
+    // 使用resource对象中的file_name作为文件名（如果存在）
+    // 优先使用file_name，因为它包含完整的文件名和扩展名
+    const filename = resource.file_name || resource.title || null;
+    // 调用API方法，传递resourceId和文件名
+    resourceAPI.downloadResource(resource.id, filename)
     if (typeof window !== 'undefined' && window.$message) {
-      window.$message.success(`正在下载: ${resource.title}`)
+      window.$message.success(`正在下载: ${resource.title || resource.file_name || '文件'}`)
     }
   } catch (error) {
     console.error('下载资源错误:', error)

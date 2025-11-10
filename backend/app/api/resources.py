@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, 
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
+from urllib.parse import quote
 from app.utils.database import get_db
 from app.services.resource_service import ResourceService
 from app.schemas.resource import (
@@ -82,6 +83,7 @@ async def get_resources(
     search: str = Query(None),
     type_filter: str = Query(None),
     category_filter: str = Query(None),
+    course_id_filter: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)  # 所有已登录用户都可以获取资源列表
 ):
@@ -93,6 +95,7 @@ async def get_resources(
     - **search**: 搜索关键词
     - **type_filter**: 资源类型筛选
     - **category_filter**: 资源分类筛选
+    - **course_id_filter**: 课程ID筛选
     """
     try:
         resource_service = ResourceService(db)
@@ -102,6 +105,7 @@ async def get_resources(
             search=search,
             type_filter=type_filter,
             category_filter=category_filter,
+            course_id_filter=course_id_filter,
             user=current_user  # 传递当前用户信息
         )
         
@@ -242,42 +246,32 @@ async def download_resource(
         
         # 检查文件是否存在
         if not os.path.exists(file_path):
-            # 添加调试信息，显示构建的文件路径和实际存储的路径
-            print(f"文件不存在: {file_path}")
-            print(f"数据库中存储的路径: {resource.file_path}")
-            print(f"基础目录: {BASE_DIR}")
-
             # 尝试直接使用uploads目录构建路径作为备选方案
             alternative_path = os.path.normpath(os.path.join(BASE_DIR, "uploads", os.path.basename(resource.file_path)))
-            print(f"备选路径: {alternative_path}")
 
             if os.path.exists(alternative_path):
                 file_path = alternative_path
             else:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"文件不存在，请检查路径: {file_path}"
+                    detail="文件不存在"
                 )
 
         # 增加下载次数
         resource_service.increment_download_count(resource_id)
 
-        # 返回文件响应
+        # 使用resource.file_name作为下载文件名，确保包含正确的扩展名
+        # FileResponse会自动设置Content-Disposition头，只需要传入filename参数即可
+        # 如果文件名包含中文或特殊字符，需要确保正确编码
         return FileResponse(
             path=file_path,
-            filename=resource.file_name,
+            filename=resource.file_name,  # 使用数据库中存储的原始文件名，包含扩展名
             media_type="application/octet-stream"
         )
     except HTTPException as e:
         # 直接抛出HTTPException，因为这是文件下载接口，不是JSON响应
         raise e
     except Exception as e:
-        # 在 download_resource 函数中添加更多调试信息
-        print(f"当前工作目录: {os.getcwd()}")
-        print(f"尝试的文件路径: {file_path}")
-        print(f"文件是否存在: {os.path.exists(file_path)}")
-        
-        print(f"下载错误: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"文件下载失败: {str(e)}"
