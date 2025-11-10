@@ -46,8 +46,7 @@ def main():
 
         print("\n✅ 服务启动完成！")
         print("📖 后端API文档: http://localhost:8000/docs")
-        print("🌐 前端应用: http://localhost:5173")
-        print("🧪 登录测试页面: http://localhost:5173/test-login")
+        print("🌐 前端应用: http://localhost:3000")
         print("\n按 Ctrl+C 停止所有服务")
         
         # 等待进程

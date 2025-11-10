@@ -114,7 +114,26 @@ export const adminAPI = {
   }
 }
 
+// 题目相关 API
+export const problemsAPI = {
+  getCourses: () => request('/problems/courses', { method: 'GET' }),
+  getCourseProblems: (courseId) => request(`/problems/courses/${courseId}/problems`, { method: 'GET' }),
+  // 获取题目 Markdown（需要以 text 返回）
+  getProblemMarkdown: async (lesson, problem) => {
+    const res = await fetch(`${API_BASE_URL}/problems/${lesson}/${problem}/problem`)
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(text || '获取题目失败')
+    }
+    return res.text()
+  },
+  run: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/run`, { method: 'POST', body: JSON.stringify({ code }) }),
+  submit: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/submit`, { method: 'POST', body: JSON.stringify({ code }) })
+}
+
 export default {
   authAPI,
   adminAPI
+  ,problemsAPI
 }
+

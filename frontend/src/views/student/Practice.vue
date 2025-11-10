@@ -1,74 +1,51 @@
 <template>
   <div class="practice-page">
+
+    <!-- 顶部标题栏 -->
     <div class="practice-header">
-      <h1 class="page-title">编程练习</h1>
-      <div class="header-actions">
-        <el-select v-model="selectedDifficulty" placeholder="选择难度" style="width: 120px">
-          <el-option label="全部" value="all" />
-          <el-option label="简单" value="easy" />
-          <el-option label="中等" value="medium" />
-          <el-option label="困难" value="hard" />
-        </el-select>
-        <el-select v-model="selectedTopic" placeholder="选择主题" style="width: 150px">
-          <el-option label="全部主题" value="all" />
-          <el-option label="Python基础" value="python-basic" />
-          <el-option label="数据结构" value="data-structure" />
-          <el-option label="算法" value="algorithm" />
-          <el-option label="面向对象" value="oop" />
-        </el-select>
+      <h1 class="page-title">
+        <el-button
+          v-if="mode === 'practice'"
+          type="text"
+          icon="ArrowLeft"
+          @click="goBack"
+          style="margin-right: 8px;"
+        ></el-button>
+        编程练习
+      </h1>
+
+      <!-- header-actions 已移除：不再显示难度与主题选择 -->
+    </div>
+
+    <!-- 题目选择界面 -->
+    <div v-if="mode === 'select'" class="problems-sidebar full">
+      <div class="sidebar-header">
+        <h3>选择一个题目开始练习</h3>
+        <div style="display:flex; gap:8px; align-items:center">
+          <el-select v-model="selectedCourse" placeholder="选择课程" size="small" style="min-width:180px" @change="fetchCourseProblems">
+            <el-option v-for="c in courses" :key="c" :label="c" :value="c" />
+          </el-select>
+          <el-button size="small" @click="refreshProblems">
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+        </div>
+      </div>
+      <div class="problems-list">
+        <div class="problem-item" v-for="problem in filteredProblems" :key="problem.id" @click="loadProblem(problem)">
+          <div class="problem-info">
+            <div class="problem-title">{{ problem.title }}</div>
+            <div class="problem-meta">
+              <el-tag size="small" :type="getDifficultyType(problem.difficulty)">{{ getDifficultyText(problem.difficulty) }}</el-tag>
+              <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="practice-content">
-      <!-- 代码编辑器区域 -->
-      <div class="editor-section">
-        <div class="editor-header">
-          <h2 class="section-title">代码编辑器</h2>
-          <div class="editor-actions">
-            <el-button type="primary" @click="runCode" :loading="running">
-              <el-icon><VideoPlay /></el-icon>
-              运行代码
-            </el-button>
-            <el-button @click="resetCode">
-              <el-icon><Refresh /></el-icon>
-              重置
-            </el-button>
-            <el-button @click="submitSolution" type="success" :disabled="!canSubmit">
-              <el-icon><Check /></el-icon>
-              提交答案
-            </el-button>
-          </div>
-        </div>
-        
-        <div class="editor-container">
-          <div class="code-editor">
-            <div class="editor-toolbar">
-              <div class="language-info">
-                <el-icon><Document /></el-icon>
-                <span>Python 3.9</span>
-              </div>
-              <div class="editor-options">
-                <el-button size="small" @click="toggleTheme">
-                  <el-icon><Moon /></el-icon>
-                </el-button>
-                <el-button size="small" @click="formatCode">
-                  <el-icon><Magic /></el-icon>
-                </el-button>
-              </div>
-            </div>
-            <div class="editor-content">
-              <textarea
-                v-model="currentCode"
-                class="code-textarea"
-                placeholder="在这里编写你的Python代码..."
-                @input="onCodeChange"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 题目和输出区域 -->
+    <!-- 练习界面（题目和输出 + 编辑器） -->
+    <div v-if="mode === 'practice'" class="practice-content">
+      <!-- 左侧：题目描述 + 输出 + AI助手（复合面板） -->
       <div class="content-section">
         <el-tabs v-model="activeTab" class="content-tabs">
           <el-tab-pane label="题目描述" name="problem">
@@ -76,29 +53,24 @@
               <div class="problem-header">
                 <h3 class="problem-title">{{ currentProblem?.title || '选择一道题目开始练习' }}</h3>
                 <div class="problem-meta">
-                  <el-tag :type="getDifficultyType(currentProblem?.difficulty)">
-                    {{ getDifficultyText(currentProblem?.difficulty) }}
-                  </el-tag>
+                  <el-tag :type="getDifficultyType(currentProblem?.difficulty)">{{ getDifficultyText(currentProblem?.difficulty) }}</el-tag>
                   <el-tag type="info">{{ currentProblem?.topic || '' }}</el-tag>
                 </div>
               </div>
-              
+
               <div class="problem-description" v-if="currentProblem">
                 <div class="description-section">
                   <h4>题目描述</h4>
                   <p>{{ currentProblem.description }}</p>
                 </div>
-                
                 <div class="description-section">
                   <h4>输入格式</h4>
                   <pre><code>{{ currentProblem.inputFormat }}</code></pre>
                 </div>
-                
                 <div class="description-section">
                   <h4>输出格式</h4>
                   <pre><code>{{ currentProblem.outputFormat }}</code></pre>
                 </div>
-                
                 <div class="description-section">
                   <h4>示例</h4>
                   <div class="example">
@@ -112,7 +84,6 @@
                     </div>
                   </div>
                 </div>
-                
                 <div class="description-section">
                   <h4>提示</h4>
                   <p>{{ currentProblem.hint }}</p>
@@ -120,7 +91,7 @@
               </div>
             </div>
           </el-tab-pane>
-          
+
           <el-tab-pane label="运行结果" name="output">
             <div class="output-content">
               <div class="output-header">
@@ -130,7 +101,6 @@
                   清空
                 </el-button>
               </div>
-              
               <div class="output-area">
                 <div v-if="output.length === 0" class="empty-output">
                   <el-icon><Document /></el-icon>
@@ -140,43 +110,43 @@
                   <pre v-for="(line, index) in output" :key="index">{{ line }}</pre>
                 </div>
               </div>
-              
+
               <div v-if="testResults.length > 0" class="test-results">
-                <h4>测试结果</h4>
-                <div class="test-item" v-for="(result, index) in testResults" :key="index">
-                  <div class="test-header">
-                    <span class="test-name">测试用例 {{ index + 1 }}</span>
-                    <el-tag :type="result.passed ? 'success' : 'danger'">
-                      {{ result.passed ? '通过' : '失败' }}
-                    </el-tag>
+                <div class="test-list">
+                  <h4>测试结果</h4>
+                  <div class="test-item" v-for="(result, index) in testResults" :key="index">
+                    <div class="test-header">
+                      <span class="test-name">测试用例 {{ index + 1 }}</span>
+                      <el-tag :type="result.passed ? 'success' : 'danger'">{{ result.passed ? '通过' : '失败' }}</el-tag>
+                    </div>
+                    <div class="test-details">
+                      <div class="test-input"><strong>输入：</strong><pre>{{ result.input }}</pre></div>
+                      <div class="test-expected"><strong>期望输出：</strong><pre>{{ result.expected }}</pre></div>
+                      <div class="test-actual"><strong>实际输出：</strong><pre>{{ result.actual }}</pre></div>
+                    </div>
                   </div>
-                  <div class="test-details">
-                    <div class="test-input">
-                      <strong>输入：</strong>
-                      <pre>{{ result.input }}</pre>
-                    </div>
-                    <div class="test-expected">
-                      <strong>期望输出：</strong>
-                      <pre>{{ result.expected }}</pre>
-                    </div>
-                    <div class="test-actual">
-                      <strong>实际输出：</strong>
-                      <pre>{{ result.actual }}</pre>
+                </div>
+
+                <div class="ai-slot">
+                  <h4>AI 助手（测评建议）</h4>
+                  <div class="ai-placeholder">
+                    <p>这里将放置 AI 助手的建议与交互窗口（占位）。</p>
+                    <el-input v-model="aiMessage" placeholder="询问 AI （示例）" size="small" />
+                    <div style="margin-top:8px; text-align:right;">
+                      <el-button size="small" type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">发送</el-button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </el-tab-pane>
-          
+
           <el-tab-pane label="AI助手" name="ai">
             <div class="ai-assistant-content">
               <div class="ai-chat">
                 <div class="chat-messages">
                   <div class="message ai-message">
-                    <div class="message-avatar">
-                      <el-icon><Magic /></el-icon>
-                    </div>
+                    <div class="message-avatar"><el-icon><Magic /></el-icon></div>
                     <div class="message-content">
                       <div class="message-text">
                         你好！我是你的AI编程助手。我可以帮你：
@@ -191,66 +161,38 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <div class="chat-input">
-                  <el-input
-                    v-model="aiMessage"
-                    placeholder="输入你的编程问题..."
-                    type="textarea"
-                    :rows="3"
-                    @keyup.ctrl.enter="sendAIMessage"
-                  />
-                  <el-button 
-                    type="primary" 
-                    @click="sendAIMessage"
-                    :disabled="!aiMessage.trim()"
-                  >
-                    发送 (Ctrl+Enter)
-                  </el-button>
+                  <el-input v-model="aiMessage" placeholder="输入你的编程问题..." type="textarea" :rows="3" @keyup.ctrl.enter="sendAIMessage" />
+                  <el-button type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">发送 (Ctrl+Enter)</el-button>
                 </div>
               </div>
             </div>
           </el-tab-pane>
         </el-tabs>
       </div>
-    </div>
 
-    <!-- 题目列表侧边栏 -->
-    <div class="problems-sidebar">
-      <div class="sidebar-header">
-        <h3>题目列表</h3>
-        <el-button size="small" @click="refreshProblems">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-      </div>
-      
-      <div class="problems-list">
-        <div 
-          class="problem-item"
-          v-for="problem in filteredProblems"
-          :key="problem.id"
-          :class="{ active: currentProblem?.id === problem.id }"
-          @click="selectProblem(problem)"
-        >
-          <div class="problem-info">
-            <div class="problem-title">{{ problem.title }}</div>
-            <div class="problem-meta">
-              <el-tag size="small" :type="getDifficultyType(problem.difficulty)">
-                {{ getDifficultyText(problem.difficulty) }}
-              </el-tag>
-              <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
-            </div>
+      <!-- 右侧：代码编辑器 -->
+      <div class="editor-section">
+        <div class="editor-header">
+          <h2 class="section-title">代码编辑器</h2>
+          <div class="editor-actions">
+            <el-button type="primary" @click="runCode" :loading="running"><el-icon><VideoPlay /></el-icon> 运行代码</el-button>
+            <el-button @click="resetCode"><el-icon><Refresh /></el-icon> 重置</el-button>
+            <el-button @click="submitSolution" type="success" :disabled="!canSubmit"><el-icon><Check /></el-icon> 提交答案</el-button>
           </div>
-          <div class="problem-status">
-            <el-icon v-if="problem.status === 'completed'" class="completed">
-              <Check />
-            </el-icon>
-            <el-icon v-else-if="problem.status === 'attempted'" class="attempted">
-              <Clock />
-            </el-icon>
-            <el-icon v-else class="not-started">
-              <Circle />
-            </el-icon>
+        </div>
+
+        <div class="editor-container">
+          <div class="code-editor">
+            <div class="editor-toolbar">
+              <div class="language-info"><el-icon><Document /></el-icon><span>Python 3.9</span></div>
+              <!-- 编辑器选项已移除：不再显示主题切换与格式化按钮 -->
+            </div>
+
+            <div class="editor-content">
+              <textarea v-model="currentCode" class="code-textarea" placeholder="在这里编写你的Python代码..." @input="onCodeChange"></textarea>
+            </div>
           </div>
         </div>
       </div>
@@ -260,10 +202,29 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { problemsAPI } from '../../utils/api.js'
+
+const mode = ref('select') // 'select' 表示题目选择界面，'practice' 表示练习界面
+
+// 后端数据
+const courses = ref([])
+const selectedCourse = ref('')
+const courseProblems = ref([])
+
+const enterPractice = (problem) => {
+  // 兼容旧入口：若需要快速进入练习，可直接选中已有 problem 对象
+  loadProblem(problem)
+}
+
+const goBack = () => {
+  mode.value = 'select'
+  currentProblem.value = null
+  currentCode.value = ''
+  output.value = []
+  testResults.value = []
+}
 
 // 响应式数据
-const selectedDifficulty = ref('all')
-const selectedTopic = ref('all')
 const activeTab = ref('problem')
 const currentCode = ref('')
 const output = ref([])
@@ -272,7 +233,7 @@ const running = ref(false)
 const currentProblem = ref(null)
 const aiMessage = ref('')
 
-// 模拟题目数据
+// 模拟题目数据（作为回退或示例）
 const problems = ref([
   {
     id: 1,
@@ -315,13 +276,10 @@ const problems = ref([
   }
 ])
 
-// 计算属性
+// 计算属性：优先使用后端获取的 courseProblems，否则使用本地模拟 problems
 const filteredProblems = computed(() => {
-  return problems.value.filter(problem => {
-    const difficultyMatch = selectedDifficulty.value === 'all' || problem.difficulty === selectedDifficulty.value
-    const topicMatch = selectedTopic.value === 'all' || problem.topic === selectedTopic.value
-    return difficultyMatch && topicMatch
-  })
+  // 不再支持按难度/主题过滤，直接显示后端或本地的题目列表
+  return courseProblems.value.length > 0 ? courseProblems.value : problems.value
 })
 
 const canSubmit = computed(() => {
@@ -350,8 +308,45 @@ const getDifficultyText = (difficulty) => {
 const selectProblem = (problem) => {
   currentProblem.value = problem
   // 根据题目设置初始代码模板
-  currentCode.value = `# ${problem.title}\n# 请在这里编写你的解决方案\n\ndef solution():\n    pass\n\n# 测试代码\nif __name__ == "__main__":\n    solution()`
+  currentCode.value = `# ${problem.title || problem.problem}\n# 请在这里编写你的解决方案\n\ndef solution():\n    pass\n\n# 测试代码\nif __name__ == "__main__":\n    solution()`
   activeTab.value = 'problem'
+}
+
+// 加载题目详情（从后端获取 markdown）
+const loadProblem = async (item) => {
+  try {
+    // item 可能包含 path 字段：lesson_xx/problem_yy
+    const path = item.path || `${selectedCourse.value}/${item.problem}`
+    const parts = path.split('/')
+    const lesson = parts[0]
+    const problemName = parts[1]
+    let md = ''
+    try {
+      md = await problemsAPI.getProblemMarkdown(lesson, problemName)
+    } catch (e) {
+      md = ''
+      console.error('获取题面失败，使用空内容作为描述', e)
+    }
+
+    const problemObj = {
+      id: item.id || `${lesson}-${problemName}`,
+      title: item.title || problemName,
+      description: md || item.description || '',
+      difficulty: item.difficulty || 'easy',
+      topic: item.topic || '',
+      inputFormat: item.inputFormat || '',
+      outputFormat: item.outputFormat || '',
+      exampleInput: item.exampleInput || '',
+      exampleOutput: item.exampleOutput || '',
+      hint: item.hint || '',
+      path: path
+    }
+
+    selectProblem(problemObj)
+    mode.value = 'practice'
+  } catch (err) {
+    console.error('loadProblem error', err)
+  }
 }
 
 const runCode = async () => {
@@ -364,43 +359,30 @@ const runCode = async () => {
   testResults.value = []
   
   try {
-    // 模拟代码执行
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟输出
-    output.value = [
-      '代码执行成功！',
-      '输出结果：',
-      '1 2 3 4 5',
-      '',
-      '执行时间: 0.001s',
-      '内存使用: 12.5MB'
-    ]
-    
-    // 模拟测试结果
-    if (currentProblem.value) {
-      testResults.value = [
-        {
-          passed: true,
-          input: '4\n2 7 11 15\n9',
-          expected: '0 1',
-          actual: '0 1'
-        },
-        {
-          passed: true,
-          input: '3\n3 2 4\n6',
-          expected: '1 2',
-          actual: '1 2'
-        },
-        {
-          passed: false,
-          input: '2\n3 3\n6',
-          expected: '0 1',
-          actual: '无输出'
-        }
+    // 如果 currentProblem 有 path，优先调用后端 run 接口
+    if (currentProblem.value && currentProblem.value.path) {
+      const parts = currentProblem.value.path.split('/')
+      const lesson = parts[0]
+      const problemName = parts[1]
+      const res = await problemsAPI.run(lesson, problemName, currentCode.value)
+      // 假定返回 { status, output }
+      output.value = [res.output || JSON.stringify(res)]
+      // 模拟测试结果占位
+      testResults.value = res.testResults || []
+    } else {
+      // 本地模拟执行（回退）
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      output.value = [
+        '代码执行成功（本地模拟）！',
+        '输出结果：',
+        '1 2 3 4 5'
       ]
+      if (currentProblem.value) {
+        testResults.value = [
+          { passed: true, input: '示例输入', expected: '示例输出', actual: '示例输出' }
+        ]
+      }
     }
-    
     activeTab.value = 'output'
   } catch (error) {
     output.value = ['代码执行出错：', error.message]
@@ -420,25 +402,26 @@ const resetCode = () => {
 const submitSolution = async () => {
   if (!canSubmit.value) return
   
-  // 模拟提交
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // 更新题目状态
-  if (currentProblem.value) {
-    const problem = problems.value.find(p => p.id === currentProblem.value.id)
-    if (problem) {
-      problem.status = 'completed'
+  try {
+    if (currentProblem.value && currentProblem.value.path) {
+      const parts = currentProblem.value.path.split('/')
+      const lesson = parts[0]
+      const problemName = parts[1]
+      const res = await problemsAPI.submit(lesson, problemName, currentCode.value)
+      // 处理返回的测评结果（mock 格式也可兼容）
+      console.log('提交结果：', res)
+      // 如果返回了 result 或 testResults，可以展示到 UI（这里简要处理）
+      if (res.result) {
+        output.value = [res.result]
+      }
+    } else {
+      // 本地模拟提交
+      await new Promise(resolve => setTimeout(resolve, 500))
+      output.value = ['本地模拟：提交已接收']
     }
-  }
-  
-  // 显示结果
-  const passedTests = testResults.value.filter(t => t.passed).length
-  const totalTests = testResults.value.length
-  
-  if (passedTests === totalTests) {
-    console.log('恭喜！所有测试用例都通过了！')
-  } else {
-    console.log(`通过了 ${passedTests}/${totalTests} 个测试用例`)
+  } catch (err) {
+    console.error('提交失败', err)
+    output.value = ['提交失败：', err.message]
   }
 }
 
@@ -447,13 +430,7 @@ const clearOutput = () => {
   testResults.value = []
 }
 
-const toggleTheme = () => {
-  console.log('切换主题')
-}
-
-const formatCode = () => {
-  console.log('格式化代码')
-}
+// 删除不再需要的演示功能：toggleTheme 和 formatCode
 
 const onCodeChange = () => {
   // 代码变化时的处理
@@ -468,14 +445,51 @@ const sendAIMessage = () => {
 }
 
 const refreshProblems = () => {
-  console.log('刷新题目列表')
+  fetchCourses()
+}
+
+// 获取课程列表并自动加载第一个课程的题目
+const fetchCourses = async () => {
+  try {
+    const res = await problemsAPI.getCourses()
+    courses.value = res.courses || []
+    if (courses.value.length > 0) {
+      selectedCourse.value = courses.value[0]
+      await fetchCourseProblems(selectedCourse.value)
+    }
+  } catch (err) {
+    console.error('fetchCourses error', err)
+  }
+}
+
+const fetchCourseProblems = async (courseId) => {
+  try {
+    const res = await problemsAPI.getCourseProblems(courseId)
+    // res.problems 可能为 [{ problem, title, path }, ...]
+    courseProblems.value = (res.problems || []).map((p, idx) => ({
+      id: p.problem || idx,
+      title: p.title || p.problem || `题目 ${idx + 1}`,
+      description: '',
+      difficulty: 'easy',
+      topic: '',
+      path: p.path || `${courseId}/${p.problem}`
+    }))
+  } catch (err) {
+    console.error('fetchCourseProblems error', err)
+    courseProblems.value = []
+  }
 }
 
 onMounted(() => {
-  // 默认选择第一道题
-  if (problems.value.length > 0) {
-    selectProblem(problems.value[0])
-  }
+  // 优先从后端加载课程和题目
+  fetchCourses().then(() => {
+    if (courseProblems.value.length > 0) {
+      // 默认选择第一题（不进入练习界面，只填充右侧）
+      selectProblem(courseProblems.value[0])
+    } else if (problems.value.length > 0) {
+      selectProblem(problems.value[0])
+    }
+  })
 })
 </script>
 
@@ -483,7 +497,8 @@ onMounted(() => {
 .practice-page {
   height: 100%;
   display: grid;
-  grid-template-columns: 1fr 300px;
+  /* 使用单列布局，让内容区占满整个页面宽度；左右面板的相对宽度在 .practice-content 中控制 */
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
   gap: $spacing-lg;
   padding: $spacing-xl;
@@ -512,9 +527,12 @@ onMounted(() => {
 
 .practice-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* 左侧为题目/结果复合面板，右侧为代码编辑器（右侧更宽） */
+  /* 修改下面两个数值可以调整左右面板的相对宽度（例如 0.5fr 1fr 或 0.7fr 1fr） */
+  grid-template-columns: 0.9fr 1fr;
   gap: $spacing-lg;
   overflow: hidden;
+  width: 100%; /* 确保占满父容器宽度 */
 }
 
 .editor-section {
@@ -853,6 +871,30 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+/* 测评结果与 AI 助手并排区域 */
+.test-results {
+  border-top: 1px solid $border-color;
+  padding-top: $spacing-lg;
+  display: flex;
+  gap: $spacing-lg;
+}
+
+.test-results .test-list {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.test-results .ai-slot {
+  width: 320px;
+  flex: 0 0 320px;
+}
+
+.ai-placeholder {
+  padding: $spacing-sm;
+  background: $bg-secondary;
+  border-radius: $border-radius;
+}
+
 .problem-item {
   display: flex;
   align-items: center;
@@ -943,5 +985,9 @@ onMounted(() => {
   .example {
     flex-direction: column;
   }
+}
+.full {
+  grid-column: 1 / -1;
+  padding: 2rem;
 }
 </style>
