@@ -346,7 +346,7 @@ const announcements = ref([
     id: 1,
     title: '新功能上线：AI编程助手',
     time: '2小时前',
-    icon: 'Magic'
+    icon: 'StarFilled'
   },
   {
     id: 2,

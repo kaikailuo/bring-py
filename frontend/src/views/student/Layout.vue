@@ -120,7 +120,7 @@
                 <el-badge :value="5" class="nav-badge" />
               </div>
               <div class="nav-item" @click="showAIAssistant = true">
-                <el-icon><Magic /></el-icon>
+                <el-icon><StarFilled /></el-icon>
                 <span>AI助手</span>
               </div>
             </div>
@@ -177,7 +177,7 @@
           <div class="ai-assistant education-card">
             <div class="assistant-header">
               <h3 class="card-title">
-                <el-icon><Magic /></el-icon>
+                <el-icon><StarFilled /></el-icon>
                 AI编程助手
               </h3>
               <el-button type="primary" size="small" @click="showAIAssistant = true">
@@ -190,7 +190,7 @@
                 <span>有什么编程问题可以问我</span>
               </div>
               <div class="preview-item">
-                <el-icon><Lightbulb /></el-icon>
+                <el-icon><Aim /></el-icon>
                 <span>我可以帮你调试代码</span>
               </div>
               <div class="preview-item">
@@ -277,7 +277,7 @@
         <div class="chat-messages">
           <div class="message ai-message">
             <div class="message-avatar">
-              <el-icon><Magic /></el-icon>
+              <el-icon><StarFilled /></el-icon>
             </div>
             <div class="message-content">
               <div class="message-text">

@@ -176,7 +176,7 @@ const getResourceIcon = (type) => {
   const icons = {
     video: 'VideoPlay',
     document: 'Document',
-    interactive: 'Magic',
+    interactive: 'StarFilled',
     code: 'EditPen'
   }
   return icons[type] || 'Document'

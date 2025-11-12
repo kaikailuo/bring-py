@@ -146,7 +146,7 @@
               <div class="ai-chat">
                 <div class="chat-messages">
                   <div class="message ai-message">
-                    <div class="message-avatar"><el-icon><Magic /></el-icon></div>
+                    <div class="message-avatar"><el-icon><StarFilled /></el-icon></div>
                     <div class="message-content">
                       <div class="message-text">
                         你好！我是你的AI编程助手。我可以帮你：
