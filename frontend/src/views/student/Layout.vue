@@ -29,20 +29,14 @@
             <el-icon><FolderOpened /></el-icon>
             <span>教学资源</span>
           </el-menu-item>
-          <el-sub-menu index="interaction">
-            <template #title>
-              <el-icon><ChatDotRound /></el-icon>
+          <el-menu-item index="/student/forum">
+            <el-icon><ChatDotRound /></el-icon>
               <span>互动交流</span>
-            </template>
-            <el-menu-item index="/student/forum">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>论坛</span>
-            </el-menu-item>
-            <el-menu-item index="/student/badges">
-              <el-icon><Trophy /></el-icon>
+          </el-menu-item>
+          <el-menu-item index="/student/badges">
+            <el-icon><ChatDotRound /></el-icon>
               <span>徽章墙</span>
-            </el-menu-item>
-          </el-sub-menu>
+          </el-menu-item>
         </el-menu>
       </div>
       
@@ -273,6 +267,28 @@
                   <div class="notification-desc">数据结构作业即将截止</div>
                 </div>
               </div>
+              <!-- 作业提醒列表（来自 mock） -->
+              <div
+                v-for="hw in homeworkList"
+                :key="hw.id"
+                class="notification-item"
+                @click="goHomework(hw.id)"
+              >
+                <div class="notification-icon">
+                  <el-icon><Calendar /></el-icon>
+                </div>
+                <div class="notification-content">
+                  <div
+                    class="notification-title"
+                    :style="{ color: isUrgent(hw.deadline) ? 'red' : '' }"
+                  >
+                    作业提醒：{{ hw.title }}
+                  </div>
+                  <div class="notification-desc">
+                    截止：{{ new Date(hw.deadline).toLocaleDateString() }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -312,6 +328,7 @@
         </div>
       </div>
     </el-dialog>
+    <BadgeModal v-model="badgeDialogVisible" :badge="currentBadge" />
   </div>
 </template>
 
@@ -320,6 +337,15 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { homeworkList } from '../../mock/homework'
+import BadgeModal from '@/components/student/BadgeModal.vue'
+const badgeDialogVisible = ref(false)
+const currentBadge = ref(null)
+
+const openBadgeDialog = (badge) => {
+  currentBadge.value = badge
+  badgeDialogVisible.value = true
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -342,9 +368,19 @@ const handleMenuSelect = (index) => {
 }
 
 const handleBadgeNotificationClick = () => {
-  // 跳转到徽章页面，可以带上badgeId参数（这里使用示例徽章ID 5）
-  router.push('/student/badges?badgeId=5')
+  const badge = {
+    id: 5,
+    icon: "🐍",
+    name: "Python基础掌握者",
+    description: "完成 Python 基础课程所有任务",
+    category: "编程",
+    requirement: "完成基础课程",
+    date: "2025-01-01 15:30"
+  }
+
+  openBadgeDialog(badge)
 }
+
 
 const handleCommand = async (command) => {
   switch (command) {
@@ -382,6 +418,15 @@ const sendAIMessage = () => {
   // 模拟AI回复
   ElMessage.success('AI助手功能开发中，敬请期待！')
   aiMessage.value = ''
+}
+
+function goHomework(id) {
+  router.push(`/student/homework/${id}`)
+}
+
+function isUrgent(deadline) {
+  const diff = new Date(deadline) - new Date()
+  return diff < 24 * 60 * 60 * 1000
 }
 </script>
 
@@ -754,11 +799,16 @@ const sendAIMessage = () => {
   font-size: $font-size-sm;
   color: $text-primary;
   margin-bottom: $spacing-xs;
+  font-weight: 600;
 }
 
 .notification-desc {
   font-size: $font-size-xs;
   color: $text-secondary;
+}
+
+.notification-title.red {
+  color: red;
 }
 
 /* AI助手对话框 */
