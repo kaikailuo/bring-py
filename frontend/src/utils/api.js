@@ -58,6 +58,56 @@ const request = async (url, options = {}) => {
   }
 }
 
+// 公开请求函数（不包含认证头）- 用于资源API
+const publicRequest = async (url, options = {}) => {
+  // 检测是否为 FormData 请求
+  const isFormData = options.body instanceof FormData;
+  
+  const defaultOptions = {
+    headers: {
+      ...(!isFormData && { 'Content-Type': 'application/json' })
+      // 不包含Authorization头
+    }
+  }
+  
+  const config = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers
+    },
+    credentials: 'include'
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}${url}`, config)
+    
+    // 对下载请求特殊处理
+    if (options.isDownload) {
+      if (!response.ok) {
+        throw new Error('下载请求失败')
+      }
+      return response;
+    }
+    
+    const data = await response.json()
+    
+    // 后端使用ApiResponse格式，即使HTTP状态码是200，也可能返回错误
+    if (!response.ok || (data.code && data.code !== 200)) {
+      const errorMessage = data.message || data.detail || '请求失败'
+      const error = new Error(errorMessage)
+      error.response = data
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('公开API请求错误:', error)
+    throw error
+  }
+}
+
 // 认证相关API
 export const authAPI = {
   // 用户注册
@@ -153,9 +203,9 @@ export const problemsAPI = {
 
 
 
-// 资源管理API
+// 资源管理API - 公开访问，无需认证
 export const resourceAPI = {
-  // 获取资源列表
+  // 获取资源列表（公开访问）
   getResources: (params = {}) => {
     // 过滤掉undefined、null和空字符串的参数，避免URLSearchParams将其转为字符串
     const validParams = {};
@@ -169,14 +219,16 @@ export const resourceAPI = {
     const queryString = new URLSearchParams(validParams).toString();
     const url = queryString ? `/resources?${queryString}` : '/resources';
     
-    return request(url, {
+    // 使用公开请求函数，不包含认证头
+    return publicRequest(url, {
       method: 'GET'
     });
   },
 
-  // 获取资源详情
+  // 获取资源详情（公开访问）
   getResourceDetail: (resourceId) => {
-    return request(`/resources/${resourceId}`, {
+    // 使用公开请求函数，不包含认证头
+    return publicRequest(`/resources/${resourceId}`, {
       method: 'GET'
     });
   },
@@ -237,7 +289,7 @@ export const resourceAPI = {
     });
   },
 
-  // 下载资源 - 使用Blob方式下载
+  // 下载资源 - 使用Blob方式下载（公开访问）
   // resourceId: 资源ID
   // filename: 可选的文件名，如果提供则优先使用（从资源对象中获取）
   downloadResource: async (resourceId, filename = null) => {
@@ -255,8 +307,8 @@ export const resourceAPI = {
         }
       }
       
-      // 使用request函数发送带认证的下载请求
-      const response = await request(`/resources/${resourceId}/download`, {
+      // 使用公开请求函数发送下载请求（不包含认证头）
+      const response = await publicRequest(`/resources/${resourceId}/download`, {
         method: 'GET',
         isDownload: true
       });
