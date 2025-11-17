@@ -1,5 +1,5 @@
 @use './variables.scss' as *;
-
+@use './markdown.scss' as *;
 * {
   margin: 0;
   padding: 0;
@@ -100,3 +100,5 @@ html, body {
     background: $text-secondary;
   }
 }
+
+

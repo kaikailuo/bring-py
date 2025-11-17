@@ -44,6 +44,17 @@ async def get_problem_markdown(lesson: str, problem: str):
         raise HTTPException(status_code=404, detail="题目文件未找到")
     return FileResponse(md_path, media_type="text/markdown")
 
+
+@router.get("/{lesson}/{problem}/assets/{filepath:path}", summary="获取题目静态资源（图片/附件）")
+async def get_problem_asset(lesson: str, problem: str, filepath: str):
+    """
+    返回题目目录下的静态资源文件（例如图片），路径为 DATA_DIR/lesson/problem/{filepath}
+    """
+    asset_path = os.path.join(DATA_DIR, lesson, problem, filepath)
+    if not os.path.exists(asset_path):
+        raise HTTPException(status_code=404, detail="资源未找到")
+    return FileResponse(asset_path)
+
 @router.get("/{lesson}/{problem}/solution", summary="获取题目参考答案")
 async def get_problem_solution(lesson: str, problem: str):
     """
