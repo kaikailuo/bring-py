@@ -44,6 +44,7 @@ const routes = [
     children: [
       {
         path: '',
+        name: 'StudentRedirect',
         redirect: '/student/dashboard'
       },
       {
@@ -86,6 +87,7 @@ const routes = [
     children: [
       {
         path: '',
+        name: 'TeacherRedirect',
         redirect: '/teacher/dashboard'
       },
       {

@@ -1,0 +1,104 @@
+@use './variables.scss' as *;
+
+/* 全局 Markdown 渲染样式（用于包裹 v-html 的 .markdown-body）
+   调整这里的变量/数值即可自主定制渲染样式 */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  color: $text-primary;
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.2em 0 0.6em;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.markdown-body h1 { font-size: 1.8rem; }
+.markdown-body h2 { font-size: 1.5rem; }
+.markdown-body h3 { font-size: 1.2rem; }
+
+.markdown-body p {
+  margin: 0 0 1em 0;
+  color: $text-secondary;
+}
+
+.markdown-body a {
+  color: $education-blue;
+  text-decoration: underline;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em 0;
+  border-radius: $border-radius;
+}
+
+/* 代码块 */
+.markdown-body pre.hljs,
+.markdown-body pre {
+  background: $bg-dark;
+  color: #f8f8f2;
+  padding: 1rem;
+  border-radius: $border-radius;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.markdown-body code {
+  background: rgba(27,31,35,0.05);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+/* 引用 */
+.markdown-body blockquote {
+  border-left: 4px solid $border-color;
+  padding: 0.6em 1em;
+  color: $text-secondary;
+  background: rgba(0,0,0,0.02);
+  margin: 0 0 1em 0;
+}
+
+/* 列表 */
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.2em;
+  margin: 0 0 1em 0;
+}
+
+/* 表格 */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid $border-color;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown-body th {
+  background: $bg-secondary;
+}
+
+/* task list checkbox spacing */
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+/* 小屏幕调整 */
+@media (max-width: 768px) {
+  .markdown-body { font-size: 13px; }
+  .markdown-body h1 { font-size: 1.4rem; }
+}

@@ -50,43 +50,10 @@
         <el-tabs v-model="activeTab" class="content-tabs">
           <el-tab-pane label="题目描述" name="problem">
             <div class="problem-content">
-              <div class="problem-header">
-                <h3 class="problem-title">{{ currentProblem?.title || '选择一道题目开始练习' }}</h3>
-                <div class="problem-meta">
-                  <el-tag :type="getDifficultyType(currentProblem?.difficulty)">{{ getDifficultyText(currentProblem?.difficulty) }}</el-tag>
-                  <el-tag type="info">{{ currentProblem?.topic || '' }}</el-tag>
-                </div>
-              </div>
-
               <div class="problem-description" v-if="currentProblem">
                 <div class="description-section">
-                  <h4>题目描述</h4>
-                  <p>{{ currentProblem.description }}</p>
-                </div>
-                <div class="description-section">
-                  <h4>输入格式</h4>
-                  <pre><code>{{ currentProblem.inputFormat }}</code></pre>
-                </div>
-                <div class="description-section">
-                  <h4>输出格式</h4>
-                  <pre><code>{{ currentProblem.outputFormat }}</code></pre>
-                </div>
-                <div class="description-section">
-                  <h4>示例</h4>
-                  <div class="example">
-                    <div class="example-input">
-                      <h5>输入：</h5>
-                      <pre><code>{{ currentProblem.exampleInput }}</code></pre>
-                    </div>
-                    <div class="example-output">
-                      <h5>输出：</h5>
-                      <pre><code>{{ currentProblem.exampleOutput }}</code></pre>
-                    </div>
-                  </div>
-                </div>
-                <div class="description-section">
-                  <h4>提示</h4>
-                  <p>{{ currentProblem.hint }}</p>
+                  <!-- 使用 v-html 安全渲染后端返回的 Markdown -->
+                  <div v-html="renderedDescription" class="markdown-body"></div>
                 </div>
               </div>
             </div>
@@ -146,7 +113,7 @@
               <div class="ai-chat">
                 <div class="chat-messages">
                   <div class="message ai-message">
-                    <div class="message-avatar"><el-icon><Magic /></el-icon></div>
+                    <div class="message-avatar"><el-icon><StarFilled /></el-icon></div>
                     <div class="message-content">
                       <div class="message-text">
                         你好！我是你的AI编程助手。我可以帮你：
@@ -202,7 +169,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { problemsAPI } from '../../utils/api.js'
+import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
+import { renderMarkdown } from '../../utils/markdown.js'
 
 const mode = ref('select') // 'select' 表示题目选择界面，'practice' 表示练习界面
 
@@ -232,6 +200,20 @@ const testResults = ref([])
 const running = ref(false)
 const currentProblem = ref(null)
 const aiMessage = ref('')
+// 将后端返回的 Markdown 渲染为安全 HTML
+const renderedDescription = computed(() => {
+  const md = currentProblem.value?.description || ''
+  if (!md) return ''
+  // 当前题目的 path 形如 lesson_xx/problem_yy
+  const path = currentProblem.value?.path || ''
+  if (!path) return renderMarkdown(md)
+  const parts = path.split('/')
+  const lesson = parts[0]
+  const problem = parts[1]
+  // 后端暴露的静态资源路由： `${API_BASE_URL}/problems/${lesson}/${problem}/assets/...`
+  const assetBase = `${_API_BASE_URL}/problems/${lesson}/${problem}/assets`
+  return renderMarkdown(md, { assetBase })
+})
 
 // 模拟题目数据（作为回退或示例）
 const problems = ref([
@@ -495,6 +477,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .practice-page {
+  /* 使用视口高度，避免父元素没有高度导致子元素无法伸展的问题 */
   height: 100%;
   display: grid;
   /* 使用单列布局，让内容区占满整个页面宽度；左右面板的相对宽度在 .practice-content 中控制 */
@@ -502,6 +485,8 @@ onMounted(() => {
   grid-template-rows: auto 1fr;
   gap: $spacing-lg;
   padding: $spacing-xl;
+  /* 防止页面整体滚动，保证左右面板独立滚动 */
+  overflow: hidden;
 }
 
 .practice-header {
@@ -535,9 +520,36 @@ onMounted(() => {
   width: 100%; /* 确保占满父容器宽度 */
 }
 
+.practice-content {
+  height: 100%;
+}
+
+/* 确保左右面板都能占满可用高度，从而内部的 .problem-content 能正确滚动 */
+.practice-content,
+.content-section,
+.editor-section,
+.content-tabs {
+  height: 100%;
+}
+
+/* Element Plus tabs 内部结构的调整，确保选项卡内容区可伸展并允许内部滚动 */
+.content-tabs .el-tabs__content {
+  display: flex;
+  flex: 1 1 auto;
+  overflow: hidden; /* 外层隐藏，具体滚动由内部 .problem-content 控制 */
+}
+
+.content-tabs .el-tab-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .editor-section {
   display: flex;
   flex-direction: column;
+  overflow: auto; /* 右侧单独滚动 */
 }
 
 .editor-header {
@@ -564,7 +576,7 @@ onMounted(() => {
   background: white;
   border-radius: $border-radius;
   box-shadow: $box-shadow;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .code-editor {
@@ -616,6 +628,9 @@ onMounted(() => {
 .content-section {
   display: flex;
   flex-direction: column;
+  /* 让左侧面板在网格行中伸展 */
+  flex: 1 1 auto;
+  overflow: auto; /* 左侧单独滚动 */
 }
 
 .content-tabs {
@@ -624,31 +639,20 @@ onMounted(() => {
   border-radius: $border-radius;
   box-shadow: $box-shadow;
   overflow: hidden;
+  /* 使选项卡占满父容器高度，内部面板可滚动 */
+  display: flex;
+  flex-direction: column;
 }
 
 .problem-content {
   padding: $spacing-lg;
   height: 100%;
   overflow-y: auto;
+  /* 确保在 flex 布局下可以正确缩放并滚动 */
+  flex: 1 1 auto;
 }
 
-.problem-header {
-  margin-bottom: $spacing-lg;
-  padding-bottom: $spacing-md;
-  border-bottom: 1px solid $border-color;
-}
-
-.problem-title {
-  font-size: $font-size-xl;
-  font-weight: bold;
-  color: $text-primary;
-  margin: 0 0 $spacing-md 0;
-}
-
-.problem-meta {
-  display: flex;
-  gap: $spacing-sm;
-}
+/* header removed: title and meta are no longer displayed */
 
 .description-section {
   margin-bottom: $spacing-lg;

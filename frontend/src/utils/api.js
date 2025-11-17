@@ -4,6 +4,7 @@
 
 // API基础配置
 const API_BASE_URL = 'http://localhost:8000/api'
+export { API_BASE_URL }
 
 // 请求拦截器
 const request = async (url, options = {}) => {
