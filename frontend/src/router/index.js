@@ -76,6 +76,19 @@ const routes = [
         name: 'StudentForum',
         component: () => import('@/views/student/Forum.vue'),
         meta: { title: '互动交流' }
+      },
+      {
+        path: 'badges',
+        name: 'StudentBadges',
+        component: () => import('@/views/student/Badges.vue'),
+        meta: { title: '徽章墙' }
+      }
+      ,
+      {
+        path: 'homework/:id',
+        name: 'HomeworkDetail',
+        component: () => import('@/views/student/HomeworkDetail.vue'),
+        meta: { title: '作业详情' }
       }
     ]
   },

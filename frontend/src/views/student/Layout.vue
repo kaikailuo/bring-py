@@ -9,12 +9,13 @@
         </div>
       </div>
       
-      <div class="header-center">
+  <div class="header-center">
         <el-menu
           :default-active="activeMenu"
           mode="horizontal"
           class="header-menu"
           @select="handleMenuSelect"
+          :router="true"
         >
           <el-menu-item index="/student/dashboard">
             <el-icon><House /></el-icon>
@@ -30,10 +31,16 @@
           </el-menu-item>
           <el-menu-item index="/student/forum">
             <el-icon><ChatDotRound /></el-icon>
-            <span>互动交流</span>
+              <span>互动交流</span>
+          </el-menu-item>
+          <el-menu-item index="/student/badges">
+            <el-icon><ChatDotRound /></el-icon>
+              <span>徽章墙</span>
           </el-menu-item>
         </el-menu>
       </div>
+      
+
       
       <div class="header-right">
         <el-dropdown @command="handleCommand">
@@ -233,7 +240,7 @@
               最新通知
             </h3>
             <div class="notification-list">
-              <div class="notification-item">
+              <div class="notification-item" @click="handleBadgeNotificationClick">
                 <div class="notification-icon">
                   <el-icon><Trophy /></el-icon>
                 </div>
@@ -258,6 +265,28 @@
                 <div class="notification-content">
                   <div class="notification-title">作业提醒</div>
                   <div class="notification-desc">数据结构作业即将截止</div>
+                </div>
+              </div>
+              <!-- 作业提醒列表（来自 mock） -->
+              <div
+                v-for="hw in homeworkList"
+                :key="hw.id"
+                class="notification-item"
+                @click="goHomework(hw.id)"
+              >
+                <div class="notification-icon">
+                  <el-icon><Calendar /></el-icon>
+                </div>
+                <div class="notification-content">
+                  <div
+                    class="notification-title"
+                    :style="{ color: isUrgent(hw.deadline) ? 'red' : '' }"
+                  >
+                    作业提醒：{{ hw.title }}
+                  </div>
+                  <div class="notification-desc">
+                    截止：{{ new Date(hw.deadline).toLocaleDateString() }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -299,6 +328,7 @@
         </div>
       </div>
     </el-dialog>
+    <BadgeModal v-model="badgeDialogVisible" :badge="currentBadge" />
   </div>
 </template>
 
@@ -307,6 +337,15 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { homeworkList } from '../../mock/homework'
+import BadgeModal from '@/components/student/BadgeModal.vue'
+const badgeDialogVisible = ref(false)
+const currentBadge = ref(null)
+
+const openBadgeDialog = (badge) => {
+  currentBadge.value = badge
+  badgeDialogVisible.value = true
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -317,12 +356,31 @@ const showAIAssistant = ref(false)
 const aiMessage = ref('')
 
 // 计算属性
-const activeMenu = computed(() => route.path)
+const activeMenu = computed(() => {
+  // For submenu items, return the full path to ensure correct highlighting
+  return route.path
+})
 
 // 方法
 const handleMenuSelect = (index) => {
-  router.push(index)
+  // Element Plus menu with router="true" handles routing automatically
+  // This method is kept for any custom logic if needed
 }
+
+const handleBadgeNotificationClick = () => {
+  const badge = {
+    id: 5,
+    icon: "🐍",
+    name: "Python基础掌握者",
+    description: "完成 Python 基础课程所有任务",
+    category: "编程",
+    requirement: "完成基础课程",
+    date: "2025-01-01 15:30"
+  }
+
+  openBadgeDialog(badge)
+}
+
 
 const handleCommand = async (command) => {
   switch (command) {
@@ -360,6 +418,15 @@ const sendAIMessage = () => {
   // 模拟AI回复
   ElMessage.success('AI助手功能开发中，敬请期待！')
   aiMessage.value = ''
+}
+
+function goHomework(id) {
+  router.push(`/student/homework/${id}`)
+}
+
+function isUrgent(deadline) {
+  const diff = new Date(deadline) - new Date()
+  return diff < 24 * 60 * 60 * 1000
 }
 </script>
 
@@ -701,9 +768,14 @@ const sendAIMessage = () => {
   padding: $spacing-sm;
   border-radius: $border-radius;
   transition: background-color 0.3s ease;
+  cursor: pointer;
   
   &:hover {
     background: $bg-hover;
+  }
+  
+  &:active {
+    background: $border-color;
   }
 }
 
@@ -727,11 +799,16 @@ const sendAIMessage = () => {
   font-size: $font-size-sm;
   color: $text-primary;
   margin-bottom: $spacing-xs;
+  font-weight: 600;
 }
 
 .notification-desc {
   font-size: $font-size-xs;
   color: $text-secondary;
+}
+
+.notification-title.red {
+  color: red;
 }
 
 /* AI助手对话框 */
