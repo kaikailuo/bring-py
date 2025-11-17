@@ -9,8 +9,9 @@
         </div>
         <nav class="nav">
           <router-link to="/home#features" class="nav-link">功能特色</router-link>
-          <router-link to="/about-us" class="nav-link active">关于我们</router-link>
+          <router-link to="/about-us" class="nav-link ">关于我们</router-link>
           <router-link to="/contact" class="nav-link">联系我们</router-link>
+          <router-link to="/feedback" class="nav-link ">问题反馈</router-link>
         </nav>
         <div class="auth-buttons">
           <el-button type="primary" @click="$router.push('/login')">
@@ -157,7 +158,7 @@
               <li><a href="#">使用帮助</a></li>
               <li><a href="#">技术文档</a></li>
               <li><a href="#">API接口</a></li>
-              <li><a href="#">问题反馈</a></li>
+              <li><router-link to="/feedback">问题反馈</router-link></li>
             </ul>
           </div>
         </div>

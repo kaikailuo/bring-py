@@ -11,7 +11,7 @@
           <router-link to="/home#features" class="nav-link">功能特色</router-link>
           <router-link to="/about-us" class="nav-link">关于我们</router-link>
           <router-link to="/contact" class="nav-link">联系我们</router-link>
-          <router-link to="/feedback" class="nav-link active">问题反馈</router-link>
+          <router-link to="/feedback" class="nav-link ">问题反馈</router-link>
         </nav>
         <div class="auth-buttons">
           <el-button type="primary" @click="$router.push('/login')">
@@ -180,7 +180,7 @@
               <li><router-link to="/home#features">功能特色</router-link></li>
               <li><router-link to="/about-us">关于我们</router-link></li>
               <li><router-link to="/contact">联系我们</router-link></li>
-              <li><router-link to="/feedback">问题反馈</router-link></li>
+              <li><router-link to="/login">用户登录</router-link></li>
             </ul>
           </div>
           <div class="footer-section">
