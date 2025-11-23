@@ -91,11 +91,11 @@ async def run_code(lesson: str, problem: str, request: CodeExecutionRequest):
     """
     模拟运行代码并返回结果
     """
-    return await svc_mock_run_code(request.code)
+    return await svc_mock_run_code(lesson,problem,request.code)
 
 @router.post("/{lesson}/{problem}/submit", summary="提交代码")
 async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest):
     """
     模拟提交代码并返回测评结果
     """
-    return await svc_mock_submit_code(request.code)
+    return await svc_mock_submit_code(lesson, problem, request.code)
