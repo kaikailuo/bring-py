@@ -145,12 +145,12 @@
         <div class="editor-container">
           <div class="code-editor">
             <div class="editor-toolbar">
-              <div class="language-info"><el-icon><Document /></el-icon><span>Python 3.9</span></div>
+              <div class="language-info"><el-icon><Document /></el-icon><span>Python</span></div>
               <!-- 编辑器选项已移除：不再显示主题切换与格式化按钮 -->
             </div>
 
             <div class="editor-content">
-              <textarea v-model="currentCode" class="code-textarea" placeholder="在这里编写你的Python代码..." @input="onCodeChange"></textarea>
+              <MonacoEditor v-model="currentCode" />
             </div>
           </div>
         </div>
@@ -161,6 +161,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import MonacoEditor from './MonacoEditor.vue'
 import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
 import { renderMarkdown } from '../../utils/markdown.js'
 
