@@ -3,132 +3,154 @@
     "lesson": 1,
     "problem": 1,
     "title": "例题1-1：绘制“禁行”交通标志",
-    "path": "lesson_01/problem_01"
+    "path": "lesson_01/problem_01",
+    "has_test": false
   },
   {
     "lesson": 2,
     "problem": 1,
     "title": "例题2-1：计算 BMI 指数",
-    "path": "lesson_02/problem_01"
+    "path": "lesson_02/problem_01",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 2,
     "title": "例题2-2：计算布料能做多少套衣服",
-    "path": "lesson_02/problem_02"
+    "path": "lesson_02/problem_02",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 3,
     "title": "例题2-3：计算火柴数量",
-    "path": "lesson_02/problem_03"
+    "path": "lesson_02/problem_03",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 4,
     "title": "例题2-4：计算购书优惠金额",
-    "path": "lesson_02/problem_04"
+    "path": "lesson_02/problem_04",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 5,
     "title": "例题2-5：计算阅读签到积分",
-    "path": "lesson_02/problem_05"
+    "path": "lesson_02/problem_05",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 6,
     "title": "例题2-6：计算铁丝长度",
-    "path": "lesson_02/problem_06"
+    "path": "lesson_02/problem_06",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 7,
     "title": "例题2-7：计算分书数量",
-    "path": "lesson_02/problem_07"
+    "path": "lesson_02/problem_07",
+    "has_test": true
   },
   {
     "lesson": 2,
     "problem": 8,
     "title": "例题2-8：计算球赛积分",
-    "path": "lesson_02/problem_08"
+    "path": "lesson_02/problem_08",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 1,
     "title": "例题3-1：统计合格比例与最大值",
-    "path": "lesson_03/problem_01"
+    "path": "lesson_03/problem_01",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 2,
     "title": "例题3-2：打印机墨盒数量统计",
-    "path": "lesson_03/problem_02"
+    "path": "lesson_03/problem_02",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 3,
     "title": "例题3-3：统计最少木棍使用量",
-    "path": "lesson_03/problem_03"
+    "path": "lesson_03/problem_03",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 4,
     "title": "例题3-4：统计到校人数与所需教室",
-    "path": "lesson_03/problem_04"
+    "path": "lesson_03/problem_04",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 5,
     "title": "例题3-5：统计可保留文创产品",
-    "path": "lesson_03/problem_05"
+    "path": "lesson_03/problem_05",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 6,
     "title": "例题3-6：计算支架数",
-    "path": "lesson_03/problem_06"
+    "path": "lesson_03/problem_06",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 7,
     "title": "例题3-7：计算愿望数",
-    "path": "lesson_03/problem_07"
+    "path": "lesson_03/problem_07",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 8,
     "title": "例题3-8：计算正确率",
-    "path": "lesson_03/problem_08"
+    "path": "lesson_03/problem_08",
+    "has_test": true
   },
   {
     "lesson": 3,
     "problem": 9,
     "title": "例题3-9：猴子定律",
-    "path": "lesson_03/problem_09"
+    "path": "lesson_03/problem_09",
+    "has_test": true
   },
   {
     "lesson": 4,
     "problem": 1,
     "title": "例题4-1：计算心脏回复率",
-    "path": "lesson_04/problem_01"
+    "path": "lesson_04/problem_01",
+    "has_test": true
   },
   {
     "lesson": 4,
     "problem": 2,
     "title": "例题4-2：计算占用字节数",
-    "path": "lesson_04/problem_02"
+    "path": "lesson_04/problem_02",
+    "has_test": true
   },
   {
     "lesson": 4,
     "problem": 3,
     "title": "例题4-3：计算快递费",
-    "path": "lesson_04/problem_03"
+    "path": "lesson_04/problem_03",
+    "has_test": true
   },
   {
     "lesson": 4,
     "problem": 4,
     "title": "例题4-4：购书问题",
-    "path": "lesson_04/problem_04"
+    "path": "lesson_04/problem_04",
+    "has_test": true
   }
 ]

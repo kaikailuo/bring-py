@@ -67,6 +67,9 @@
                   <el-icon><Delete /></el-icon>
                   清空
                 </el-button>
+                <el-button size="small" type="primary" @click="goToAI" style="margin-left:8px;">
+                  求助AI
+                </el-button>
               </div>
               <div class="output-area">
                 <div v-if="output.length === 0" class="empty-output">
@@ -90,17 +93,6 @@
                       <div class="test-input"><strong>输入：</strong><pre>{{ result.input }}</pre></div>
                       <div class="test-expected"><strong>期望输出：</strong><pre>{{ result.expected }}</pre></div>
                       <div class="test-actual"><strong>实际输出：</strong><pre>{{ result.actual }}</pre></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="ai-slot">
-                  <h4>AI 助手（测评建议）</h4>
-                  <div class="ai-placeholder">
-                    <p>这里将放置 AI 助手的建议与交互窗口（占位）。</p>
-                    <el-input v-model="aiMessage" placeholder="询问 AI （示例）" size="small" />
-                    <div style="margin-top:8px; text-align:right;">
-                      <el-button size="small" type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">发送</el-button>
                     </div>
                   </div>
                 </div>
@@ -153,12 +145,12 @@
         <div class="editor-container">
           <div class="code-editor">
             <div class="editor-toolbar">
-              <div class="language-info"><el-icon><Document /></el-icon><span>Python 3.9</span></div>
+              <div class="language-info"><el-icon><Document /></el-icon><span>Python</span></div>
               <!-- 编辑器选项已移除：不再显示主题切换与格式化按钮 -->
             </div>
 
             <div class="editor-content">
-              <textarea v-model="currentCode" class="code-textarea" placeholder="在这里编写你的Python代码..." @input="onCodeChange"></textarea>
+              <MonacoEditor v-model="currentCode" />
             </div>
           </div>
         </div>
@@ -169,6 +161,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import MonacoEditor from './MonacoEditor.vue'
 import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
 import { renderMarkdown } from '../../utils/markdown.js'
 
@@ -347,10 +340,15 @@ const runCode = async () => {
       const lesson = parts[0]
       const problemName = parts[1]
       const res = await problemsAPI.run(lesson, problemName, currentCode.value)
-      // 假定返回 { status, output }
-      output.value = [res.output || JSON.stringify(res)]
-      // 模拟测试结果占位
-      testResults.value = res.testResults || []
+      // 优化前端展示：如果后端返回 testResults，则展示为测试点列表，不显示原始 JSON
+      if (res && Array.isArray(res.testResults) && res.testResults.length > 0) {
+        testResults.value = res.testResults
+        // 如果后端还返回 output 字段且非空，可展示为单行信息；否则保持输出区空
+        output.value = res.result ? (typeof res.result === 'string' ? res.result.split('\n') : [String(res.result)]) : []
+      } else {
+        output.value = res.result ? (typeof res.result === 'string' ? res.result.split('\n') : [JSON.stringify(res)]) : []
+        testResults.value = res.testResults || []
+      }
     } else {
       // 本地模拟执行（回退）
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -392,10 +390,15 @@ const submitSolution = async () => {
       const res = await problemsAPI.submit(lesson, problemName, currentCode.value)
       // 处理返回的测评结果（mock 格式也可兼容）
       console.log('提交结果：', res)
-      // 如果返回了 result 或 testResults，可以展示到 UI（这里简要处理）
-      if (res.result) {
-        output.value = [res.result]
+      // 如果后端返回 testResults，则展示所有测试点；否则使用兼容的 result 文本
+      if (res && Array.isArray(res.testResults) && res.testResults.length > 0) {
+        testResults.value = res.testResults
+        output.value = res.result ? [res.result] : []
+      } else {
+        output.value = res.result ? [res.result] : []
+        testResults.value = res.testResults || []
       }
+      activeTab.value = 'output'
     } else {
       // 本地模拟提交
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -410,6 +413,10 @@ const submitSolution = async () => {
 const clearOutput = () => {
   output.value = []
   testResults.value = []
+}
+
+const goToAI = () => {
+  activeTab.value = 'ai'
 }
 
 // 删除不再需要的演示功能：toggleTheme 和 formatCode
@@ -721,11 +728,13 @@ onMounted(() => {
 
 .output-area {
   flex: 1;
+  height: 200px;
+  min-height: 240px;
   background: $bg-dark;
   border-radius: $border-radius;
   padding: $spacing-md;
   margin-bottom: $spacing-lg;
-  overflow-y: auto;
+  overflow-y :hidden;
 }
 
 .empty-output {
@@ -743,15 +752,30 @@ onMounted(() => {
 }
 
 .output-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;   // 👍 垂直居中
+  height: 100%;              // 👍 必须：让它填满 .output-area
+
   color: #f8f8f2;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: $font-size-sm;
   line-height: 1.6;
+
+  pre {
+    margin: 0;
+    font-size: 40px;
+    white-space: pre-wrap;
+    text-align: center;       // 如果需要文字居中
+  }
 }
+
 
 .test-results {
   border-top: 1px solid $border-color;
   padding-top: $spacing-lg;
+  overflow-y : auto;
 }
 
 .test-results h4 {
@@ -886,11 +910,6 @@ onMounted(() => {
 .test-results .test-list {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.test-results .ai-slot {
-  width: 320px;
-  flex: 0 0 320px;
 }
 
 .ai-placeholder {

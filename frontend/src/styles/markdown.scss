@@ -26,7 +26,7 @@
 
 .markdown-body p {
   margin: 0 0 1em 0;
-  color: $text-secondary;
+  color: #333;    /* 改这里，正文更深 */
 }
 
 .markdown-body a {
@@ -45,19 +45,26 @@
 /* 代码块 */
 .markdown-body pre.hljs,
 .markdown-body pre {
-  background: $bg-dark;
-  color: #f8f8f2;
+  background: #f5f5f5 !important;   /* 淡灰色背景 */
+  color: #333 !important;           /* 黑色文字 */
   padding: 1rem;
   border-radius: $border-radius;
   overflow: auto;
-  font-size: 13px;
+  font-size: 15px;
 }
 
-.markdown-body code {
-  background: rgba(27,31,35,0.05);
-  padding: 0.15em 0.35em;
-  border-radius: 4px;
-  font-size: 0.95em;
+/* 让 highlight.js 不要乱上色 */
+.markdown-body pre .hljs-keyword,
+.markdown-body pre .hljs-built_in,
+.markdown-body pre .hljs-type,
+.markdown-body pre .hljs-number,
+.markdown-body pre .hljs-string,
+.markdown-body pre .hljs-literal,
+.markdown-body pre .hljs-symbol,
+.markdown-body pre .hljs-title,
+.markdown-body pre .hljs-attr,
+.markdown-body pre .hljs-attribute {
+  color: inherit !important;       /* 全部继承黑色 */
 }
 
 /* 引用 */
