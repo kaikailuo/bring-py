@@ -44,6 +44,17 @@ async def get_problem_markdown(lesson: str, problem: str):
         raise HTTPException(status_code=404, detail="题目文件未找到")
     return FileResponse(md_path, media_type="text/markdown")
 
+
+@router.get("/{lesson}/{problem}/assets/{filepath:path}", summary="获取题目静态资源（图片/附件）")
+async def get_problem_asset(lesson: str, problem: str, filepath: str):
+    """
+    返回题目目录下的静态资源文件（例如图片），路径为 DATA_DIR/lesson/problem/{filepath}
+    """
+    asset_path = os.path.join(DATA_DIR, lesson, problem, filepath)
+    if not os.path.exists(asset_path):
+        raise HTTPException(status_code=404, detail="资源未找到")
+    return FileResponse(asset_path)
+
 @router.get("/{lesson}/{problem}/solution", summary="获取题目参考答案")
 async def get_problem_solution(lesson: str, problem: str):
     """
@@ -80,11 +91,11 @@ async def run_code(lesson: str, problem: str, request: CodeExecutionRequest):
     """
     模拟运行代码并返回结果
     """
-    return await svc_mock_run_code(request.code)
+    return await svc_mock_run_code(lesson,problem,request.code)
 
 @router.post("/{lesson}/{problem}/submit", summary="提交代码")
 async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest):
     """
     模拟提交代码并返回测评结果
     """
-    return await svc_mock_submit_code(request.code)
+    return await svc_mock_submit_code(lesson, problem, request.code)

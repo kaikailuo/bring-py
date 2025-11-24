@@ -112,7 +112,7 @@ for i in range(10):
 
             <div class="feature-card education-card fade-in-up">
               <div class="feature-icon ai-icon">
-                <el-icon><Magic /></el-icon>
+                <el-icon><StarFilled /></el-icon>
               </div>
               <h3 class="feature-title">AI编程辅助系统</h3>
               <p class="feature-description">
