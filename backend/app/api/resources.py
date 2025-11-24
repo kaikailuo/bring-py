@@ -15,7 +15,7 @@ from app.schemas.resource import (
     ResourceListResponse,
     ApiResponse
 )
-from app.utils.security import get_current_active_user, require_teacher
+from app.utils.security import require_teacher
 from app.models.user import User
 from app.models.resource import ResourceType, ResourceCategory
 
@@ -84,11 +84,11 @@ async def get_resources(
     type_filter: str = Query(None),
     category_filter: str = Query(None),
     course_id_filter: str = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)  # 所有已登录用户都可以获取资源列表
+    db: Session = Depends(get_db)
+    # 公开访问，无需认证
 ):
     """
-    获取资源列表，支持分页、搜索和筛选
+    获取资源列表，支持分页、搜索和筛选（公开访问）
     
     - **page**: 页码
     - **page_size**: 每页数量
@@ -106,7 +106,7 @@ async def get_resources(
             type_filter=type_filter,
             category_filter=category_filter,
             course_id_filter=course_id_filter,
-            user=current_user  # 传递当前用户信息
+            user=None  # 公开访问，不传递用户信息
         )
         
         return ApiResponse.success(
@@ -128,11 +128,11 @@ async def get_resources(
 @router.get("/{resource_id}", response_model=ApiResponse, summary="获取资源详情")
 async def get_resource(
     resource_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)  # 所有已登录用户都可以获取资源详情
+    db: Session = Depends(get_db)
+    # 公开访问，无需认证
 ):
     """
-    获取资源详情
+    获取资源详情（公开访问）
     
     - **resource_id**: 资源ID
     """
@@ -223,11 +223,11 @@ async def delete_resource(
 @router.get("/{resource_id}/download", summary="下载资源")
 async def download_resource(
         resource_id: int,
-        db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)  # 所有已登录用户都可以下载资源
+        db: Session = Depends(get_db)
+        # 公开访问，无需认证
 ):
     """
-    下载资源文件
+    下载资源文件（公开访问）
 
     - **resource_id**: 资源ID
     """
