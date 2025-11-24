@@ -72,16 +72,14 @@
           </div>
 
           <!-- 操作按钮组 -->
-          <div class="resource-actions">
-            <button class="action-btn" @click="downloadResource(resource)" title="下载">
-              <i class="icon-download"></i>
-            </button>
-<button class="action-btn" @click="editResource(resource)" title="编辑">
-              <i class="icon-edit"></i>
-            </button>
-            <button class="action-btn danger" @click="confirmDelete(resource)" title="删除">
-              <i class="icon-delete"></i>
-            </button>
+         <div class="resource-actions">
+  <button class="action-btn" @click="downloadResource(resource)" title="下载">
+    <el-icon><Download /></el-icon>
+  </button>
+
+  <button class="action-btn danger" @click="confirmDelete(resource)" title="删除">
+    <el-icon><Delete /></el-icon>
+  </button>
 </div>
         </div>
       </div>

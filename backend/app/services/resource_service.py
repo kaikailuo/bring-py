@@ -62,7 +62,6 @@ class ResourceService:
         
         # 公开访问：显示所有关联了课程的资源（course_id不为空）
         # 这样可以确保只有教师明确关联到课程的资源才会显示给学生
-        query = query.filter(Resource.course_id.isnot(None))
         
         # 搜索
         if search:
