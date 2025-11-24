@@ -28,25 +28,68 @@ def load_index() -> Optional[List[Dict]]:
 
 
 def get_courses() -> List[str]:
-    """返回课程列表，优先使用 index.json 的 path 字段抽取课程名；回退到目录扫描"""
+    """返回课程列表。
+    优先读取 `courses.json`（若存在），格式为 [{id,name}]；
+    否则从 `index.json` 或目录扫描中自动推断。
+    """
+    # 优先读取 courses.json（便于集中管理课程名称）
+    courses_file = os.path.join(DATA_DIR, "courses.json")
+    if os.path.exists(courses_file):
+        try:
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # 简单验证
+                if isinstance(data, list):
+                    good = True
+                    for it in data:
+                        if not isinstance(it, dict) or 'id' not in it or 'name' not in it:
+                            good = False
+                            break
+                    if good:
+                        return data
+        except Exception:
+            # 若解析失败，继续回退逻辑
+            pass
+
     data = load_index()
-    courses_set = set()
+    courses_set = []  # 保持列表以保证顺序
+    seen = set()
     if data:
         for item in data:
             path = item.get("path") if isinstance(item, dict) else None
             if path:
                 parts = path.split("/")
                 if parts:
-                    courses_set.add(parts[0])
+                    cid = parts[0]
+                    if cid not in seen:
+                        seen.add(cid)
+                        courses_set.append(cid)
 
     if not courses_set:
-        # 目录扫描回退
+        # 目录扫描回退，按目录名排序
         if os.path.exists(DATA_DIR):
-            for name in os.listdir(DATA_DIR):
+            for name in sorted(os.listdir(DATA_DIR)):
                 if os.path.isdir(os.path.join(DATA_DIR, name)):
-                    courses_set.add(name)
+                    courses_set.append(name)
 
-    return sorted(courses_set)
+    # 将 id 转为友好名称，例如 lesson_01 -> 课程一
+    def _to_name(cid: str) -> str:
+        # 尝试解析数字部分
+        import re
+        m = re.search(r"(\d+)", cid)
+        if m:
+            try:
+                n = int(m.group(1))
+                chinese = ["零","一","二","三","四","五","六","七","八","九","十",
+                           "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十"]
+                if 0 <= n < len(chinese):
+                    return f"课程{chinese[n]}"
+            except Exception:
+                pass
+        # 无法解析则直接返回原 id
+        return cid
+
+    return [{"id": cid, "name": _to_name(cid)} for cid in courses_set]
 
 
 def get_course_problems(course_id: str) -> List[Dict]:
