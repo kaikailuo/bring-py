@@ -76,6 +76,18 @@ const routes = [
         name: 'StudentForum',
         component: () => import('@/views/student/Forum.vue'),
         meta: { title: '互动交流' }
+      },
+      {
+        path: 'profile',
+        name: 'StudentProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人主页' }
+      },
+      {
+        path: 'user/:userId',
+        name: 'StudentUserProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '用户主页' }
       }
     ]
   },
@@ -119,6 +131,18 @@ const routes = [
         name: 'QuestionMonitor',
         component: () => import('@/views/teacher/QuestionMonitor.vue'),
         meta: { title: '问题监控' }
+      },
+      {
+        path: 'profile',
+        name: 'TeacherProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人主页' }
+      },
+      {
+        path: 'user/:userId',
+        name: 'TeacherUserProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '用户主页' }
       }
     ]
   },
@@ -172,20 +196,35 @@ router.beforeEach((to, from, next) => {
   // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - 高中信息技术教学平台` : '高中信息技术教学平台'
   
+  // 获取用户角色（确保是字符串并转为小写）
+  const userRole = userStore.user?.role ? String(userStore.user.role).toLowerCase() : null
+  const requiredRole = to.meta.role ? String(to.meta.role).toLowerCase() : null
+  
+  console.log('路由守卫:', {
+    to: to.path,
+    from: from.path,
+    isLoggedIn: userStore.isLoggedIn,
+    userRole,
+    requiredRole,
+    requiresAuth: to.meta.requiresAuth
+  })
+  
   // 检查是否需要登录
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    console.log('需要登录，重定向到登录页')
     next('/login')
     return
   }
   
   // 检查角色权限
-  if (to.meta.role && userStore.user?.role !== to.meta.role) {
+  if (requiredRole && userRole !== requiredRole) {
+    console.log('角色不匹配，重定向到对应页面')
     // 根据用户角色重定向到对应页面
-    if (userStore.user?.role === 'student') {
+    if (userRole === 'student') {
       next('/student')
-    } else if (userStore.user?.role === 'teacher') {
+    } else if (userRole === 'teacher') {
       next('/teacher')
-    } else if (userStore.user?.role === 'admin') {
+    } else if (userRole === 'admin') {
       next('/admin')
     } else {
       next('/home')
@@ -195,9 +234,10 @@ router.beforeEach((to, from, next) => {
   
   // 已登录用户访问登录页面时重定向
   if (to.meta.hideForAuth && userStore.isLoggedIn) {
-    if (userStore.user?.role === 'student') {
+    console.log('已登录，从登录页重定向')
+    if (userRole === 'student') {
       next('/student')
-    } else if (userStore.user?.role === 'teacher') {
+    } else if (userRole === 'teacher') {
       next('/teacher')
     } else {
       next('/home')

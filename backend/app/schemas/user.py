@@ -14,6 +14,17 @@ class UserBase(BaseModel):
     email: EmailStr
     role: UserRole
 
+    # -------------------------
+    # 🆕 新增：基础展示所需的个人资料字段
+    # （这些字段不会用于创建，只用于读取/响应）
+    # -------------------------
+    avatar: Optional[str] = None
+    nickname: Optional[str] = None
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+    # -------------------------
+
     @validator('username')
     def validate_username(cls, v):
         if len(v) < 3 or len(v) > 20:
@@ -32,6 +43,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """用户创建模式"""
     password: str
+
+    # 创建用户时不能传 nickname/avatar/bio 等
+    class Config:
+        extra = "ignore"
 
     @validator('password')
     def validate_password(cls, v):
@@ -59,11 +74,14 @@ class UserLogin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """用户更新模式"""
+    """用户更新模式（管理员或自身更新基础信息）"""
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     is_active: Optional[bool] = None
+
+    # 🔥 注意：这是系统级更新，不包含 profile 字段
+    # profile 字段单独走 UserProfileUpdate（更安全）
 
     @validator('name')
     def validate_name(cls, v):
@@ -76,6 +94,34 @@ class UserUpdate(BaseModel):
         if v is not None and (len(v) < 6 or len(v) > 20):
             raise ValueError('密码长度应为6-20个字符')
         return v
+
+
+# -------------------------
+# 🆕 新增：用户个人资料更新模式
+# -------------------------
+class UserProfileUpdate(BaseModel):
+    """用户个人资料更新（前端用户可自由修改）"""
+    avatar: Optional[str] = None
+    nickname: Optional[str] = None
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+
+    class Config:
+        extra = "ignore"
+
+    @validator('nickname')
+    def validate_nickname(cls, v):
+        if v is not None and len(v) > 20:
+            raise ValueError('昵称长度不能超过20字符')
+        return v
+
+    @validator('bio')
+    def validate_bio(cls, v):
+        if v is not None and len(v) > 300:
+            raise ValueError('简介最多300字')
+        return v
+# -------------------------
 
 
 class UserInDB(UserBase):
@@ -134,3 +180,4 @@ class ApiResponse(BaseModel):
     def error(cls, code=400, message="error", data=None):
         """错误响应"""
         return cls(code=code, message=message, data=data)
+

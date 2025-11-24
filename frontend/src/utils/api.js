@@ -3,7 +3,8 @@
  */
 
 // API基础配置
-const API_BASE_URL = 'http://localhost:8000/api'
+// 使用 127.0.0.1 避免在某些环境下 localhost 解析为 IPv6 (::1) 导致连接问题
+const API_BASE_URL = 'http://127.0.0.1:8000/api'
 export { API_BASE_URL }
 
 // 请求拦截器
@@ -103,6 +104,28 @@ export const authAPI = {
     return request('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(passwordData)
+    })
+  },
+  
+  // 获取当前用户个人资料
+  getProfile: () => {
+    return request('/auth/me/profile', {
+      method: 'GET'
+    })
+  },
+  
+  // 更新当前用户个人资料
+  updateProfile: (profileData) => {
+    return request('/auth/me/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    })
+  },
+  
+  // 获取指定用户个人资料
+  getUserProfile: (userId) => {
+    return request(`/auth/users/${userId}/profile`, {
+      method: 'GET'
     })
   }
 }
@@ -326,11 +349,20 @@ export const resourceAPI = {
   }
 };
 
-// 默认导出
+// 通用 http 方法，放在默认导出之前以避免暂时性死区（TDZ）错误
+export const http = {
+  get: (url) => request(url, { method: 'GET' }),
+  post: (url, body) => request(url, { method: 'POST', body: JSON.stringify(body) }),
+  put: (url, body) => request(url, { method: 'PUT', body: JSON.stringify(body) }),
+  del: (url) => request(url, { method: 'DELETE' })
+}
+
+// 默认导出（包含通用 http）
 export default {
   authAPI,
   adminAPI,
   problemsAPI,
-  resourceAPI
+  resourceAPI,
+  http
 };
 

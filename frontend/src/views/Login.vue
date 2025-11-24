@@ -141,7 +141,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { authAPI } from '@/utils/api'
@@ -233,17 +233,36 @@ const handleLogin = async () => {
     if (response.code === 200) {
       const { token, user } = response.data
 
+      console.log('登录响应数据:', { token, user })
+      console.log('用户角色:', user.role, '类型:', typeof user.role)
+
+      // 确保 role 是字符串
+      const userRole = String(user.role || '').toLowerCase()
+
       localStorage.setItem('token', token)
       userStore.login(user, token)
 
-      ElMessage.success(`${user.role === 'student' ? '学生' : user.role === 'teacher' ? '教师' : '管理员'}登录成功！`)
+      // 等待 store 更新完成
+      await nextTick()
 
-      if (user.role === 'student') {
-        router.push('/student')
-      } else if (user.role === 'teacher') {
-        router.push('/teacher')
-      } else if (user.role === 'admin') {
-        router.push('/admin')
+      ElMessage.success(`${userRole === 'student' ? '学生' : userRole === 'teacher' ? '教师' : '管理员'}登录成功！`)
+
+      // 使用 nextTick 确保 store 更新后再跳转
+      await nextTick()
+      
+      // 根据角色跳转
+      if (userRole === 'student') {
+        console.log('跳转到学生端')
+        await router.push('/student')
+      } else if (userRole === 'teacher') {
+        console.log('跳转到教师端')
+        await router.push('/teacher')
+      } else if (userRole === 'admin') {
+        console.log('跳转到管理员端')
+        await router.push('/admin')
+      } else {
+        console.warn('未知角色，跳转到首页')
+        await router.push('/home')
       }
     } else {
       ElMessage.error(response.message || '登录失败')
