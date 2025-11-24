@@ -38,7 +38,8 @@ class Comment(Base):
             "author": {
                 "id": self.author.id if self.author else None,
                 "name": self.author.name if self.author else "未知用户",
-                "avatar": ""
+                "avatar": self.author.avatar if self.author and self.author.avatar else None,
+                "role": self.author.role.value if self.author and self.author.role else None
             },
             "parent_id": self.parent_id,
             "likes": self.likes,

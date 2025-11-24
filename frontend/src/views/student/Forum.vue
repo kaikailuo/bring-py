@@ -76,11 +76,23 @@
             
             <div class="post-footer">
               <div class="post-author">
-                <el-avatar :src="post.author.avatar" :size="24">
+                <el-avatar 
+                  :src="post.author?.avatar" 
+                  :size="24"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(post.author)"
+                >
                   <el-icon><User /></el-icon>
                 </el-avatar>
-                <span class="author-name">{{ post.author.name }}</span>
+                <span 
+                  class="author-name"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(post.author)"
+                >
+                  {{ post.author?.name || '未知用户' }}
+                </span>
                 <span class="post-time">{{ post.time }}</span>
+                <el-button size="mini" type="primary" @click.stop="aiSummarize(post.id)" style="margin-left:8px">一键AI总结</el-button>
               </div>
               
               <div class="post-stats">
@@ -170,11 +182,22 @@
         <div class="comments-list">
           <div class="comment-item" v-for="comment in comments" :key="comment.id">
             <div class="comment-header">
-              <el-avatar :size="32">
+              <el-avatar 
+                :src="comment.author?.avatar" 
+                :size="32"
+                style="cursor: pointer;"
+                @click="goToUserProfile(comment.author)"
+              >
                 <el-icon><User /></el-icon>
               </el-avatar>
               <div class="comment-author">
-                <span class="author-name">{{ comment.author.name }}</span>
+                <span 
+                  class="author-name"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(comment.author)"
+                >
+                  {{ comment.author?.name || '未知用户' }}
+                </span>
                 <span class="comment-time">{{ comment.time }}</span>
               </div>
             </div>
@@ -193,11 +216,22 @@
             <!-- 回复列表 -->
             <div class="replies-list" v-if="comment.replies && comment.replies.length > 0">
               <div class="reply-item" v-for="reply in comment.replies" :key="reply.id">
-                <el-avatar :size="24">
+                <el-avatar 
+                  :src="reply.author?.avatar" 
+                  :size="24"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(reply.author)"
+                >
                   <el-icon><User /></el-icon>
                 </el-avatar>
                 <div class="reply-content">
-                  <span class="reply-author">{{ reply.author.name }}：</span>
+                  <span 
+                    class="reply-author"
+                    style="cursor: pointer;"
+                    @click="goToUserProfile(reply.author)"
+                  >
+                    {{ reply.author?.name || '未知用户' }}：
+                  </span>
                   <span class="reply-text">{{ reply.content }}</span>
                 </div>
               </div>
@@ -214,9 +248,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import api from '@/utils/api'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 // 响应式数据
 const selectedCategory = ref('all')
@@ -289,42 +329,7 @@ const categories = ref([
   }
 ])
 
-const posts = ref([
-  {
-    id: 1,
-    title: 'Python中如何优雅地处理异常？',
-    content: '在学习Python的过程中，经常遇到各种异常情况，想了解一下有哪些优雅的处理方式...',
-    category: 'python-basic',
-    tags: ['Python', '异常处理', '最佳实践'],
-    author: {
-      name: '张同学',
-      avatar: ''
-    },
-    time: '2小时前',
-    views: 156,
-    replies: 8,
-    likes: 12,
-    isFeatured: false,
-    isPinned: false
-  },
-  {
-    id: 2,
-    title: '数据结构学习心得分享',
-    content: '经过一段时间的学习，总结了一些数据结构的学习心得，希望对大家有帮助...',
-    category: 'data-structure',
-    tags: ['数据结构', '学习心得', '分享'],
-    author: {
-      name: '李同学',
-      avatar: ''
-    },
-    time: '5小时前',
-    views: 234,
-    replies: 15,
-    likes: 28,
-    isFeatured: true,
-    isPinned: false
-  }
-])
+const posts = ref([])
 
 // 计算属性
 const selectedCategoryName = computed(() => {
@@ -413,10 +418,7 @@ const submitNewPost = async () => {
     handleNewPostClose()
 
     // 重新加载帖子列表
-    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
-    if (postsRes.data && postsRes.data.data) {
-      posts.value = postsRes.data.data
-    }
+    await loadPosts()
 
   } catch (error) {
     // 表单验证失败
@@ -526,10 +528,7 @@ const submitComment = async () => {
     await showComments(currentPost.value)
     
     // 刷新帖子列表
-    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
-    if (postsRes.data && postsRes.data.data) {
-      posts.value = postsRes.data.data
-    }
+    await loadPosts()
   } catch (error) {
     console.error('发表评论失败:', error)
     ElMessage.error(error?.response?.data?.detail || '发表评论失败')
@@ -541,7 +540,7 @@ const submitComment = async () => {
 // 回复评论
 const replyToComment = (comment) => {
   replyingTo.value = comment
-  newComment.value = `@${comment.author.name} `
+  newComment.value = `@${comment.author?.name || '未知用户'} `
 }
 
 // 点赞评论
@@ -571,6 +570,55 @@ const likeComment = async (comment) => {
     ElMessage.error('点赞失败')
   }
 }
+
+// 跳转到用户个人主页
+const goToUserProfile = (author) => {
+  if (!author || !author.id) return
+  
+  // 如果查看的是自己的主页，跳转到个人主页
+  if (author.id === userStore.user?.id) {
+    if (userStore.userRole === 'student') {
+      router.push('/student/profile')
+    } else if (userStore.userRole === 'teacher') {
+      router.push('/teacher/profile')
+    }
+    return
+  }
+  
+  // 查看其他用户的主页，根据当前用户角色跳转
+  if (userStore.userRole === 'student') {
+    router.push(`/student/user/${author.id}`)
+  } else if (userStore.userRole === 'teacher') {
+    router.push(`/teacher/user/${author.id}`)
+  } else {
+    // 如果是其他角色或未登录，跳转到学生端
+    router.push(`/student/user/${author.id}`)
+  }
+}
+
+// 加载帖子列表
+const loadPosts = async () => {
+  try {
+    const res = await axios.get("http://127.0.0.1:8000/api/posts/")
+    if (res.data && res.data.code === 200 && res.data.data) {
+      posts.value = res.data.data.map(post => ({
+        ...post,
+        // 确保字段映射正确
+        isFeatured: post.isFeatured !== undefined ? post.isFeatured : post.is_featured,
+        isPinned: post.isPinned !== undefined ? post.isPinned : post.is_pinned,
+        author: post.author || { name: '未知用户', avatar: null, id: null, role: null }
+      }))
+    }
+  } catch (error) {
+    console.error('加载帖子列表失败:', error)
+    posts.value = []
+  }
+}
+
+// 初始化加载帖子
+onMounted(() => {
+  loadPosts()
+})
 
 // 收藏/取消收藏
 const toggleFavorite = async (post) => {
@@ -605,6 +653,17 @@ const toggleFavorite = async (post) => {
   } catch (error) {
     console.error('收藏操作失败:', error)
     ElMessage.error(error?.response?.data?.detail || '操作失败')
+  }
+}
+
+// AI 总结触发函数（前端仅发起请求，后端返回占位）
+const aiSummarize = async (postId) => {
+  try {
+    await api.http.post('/ai/summarize', { post_id: postId })
+    ElMessage.success('AI 总结请求已发送')
+  } catch (err) {
+    console.error('AI summarize error', err)
+    ElMessage.error('AI 总结请求失败')
   }
 }
 </script>

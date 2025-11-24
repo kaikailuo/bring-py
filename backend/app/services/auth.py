@@ -107,7 +107,7 @@ class AuthService:
         
         return LoginResponse(
             token=access_token,
-            user=UserResponse.from_orm(user)
+            user=UserResponse.model_validate(user)
         )
     
     def get_user_by_username(self, username: str) -> User:
@@ -139,7 +139,7 @@ class AuthService:
                 detail="用户不存在"
             )
         
-        return UserResponse.from_orm(user)
+        return UserResponse.model_validate(user)
     
     def update_user(self, user_id: int, update_data: dict) -> User:
         """
@@ -236,3 +236,32 @@ class AuthService:
             User.role == role,
             User.is_active == True
         ).offset(skip).limit(limit).all()
+    def update_profile(self, user_id: int, profile_data: dict) -> User:
+        """
+        更新用户个人资料（头像、昵称、简介等）
+        """
+        user = self.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+
+        # 可更新的字段（与数据库模型一致）
+        allow_fields = {"avatar", "nickname", "bio", "gender", "phone"}
+
+        # 更新可修改的个人资料字段
+        for field, value in profile_data.items():
+            if field in allow_fields and value is not None:
+                setattr(user, field, value)
+
+        try:
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except Exception:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="更新个人资料失败"
+            )
