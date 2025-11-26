@@ -14,6 +14,7 @@ from app.schemas.user import (
 )
 from app.utils.security import get_current_active_user
 from app.models.user import User
+from app.models.user import UserRole
 
 # 创建路由器
 router = APIRouter(prefix="/auth", tags=["认证"])
@@ -179,6 +180,35 @@ async def deactivate_user(
         return ApiResponse.error(code=e.status_code, message=e.detail)
     except Exception as e:
         return ApiResponse.error(code=500, message=f"用户停用失败: {str(e)}")
+
+
+# 教师/管理员：禁言/解禁用户（最小化实现，设置 is_muted 字段）
+@router.put("/users/{user_id}/mute", response_model=ApiResponse, summary="禁言/解禁用户（教师/管理员）")
+async def mute_user(
+    user_id: int,
+    mute: bool,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """ 教师或管理员可以禁言（mute=True）或解禁（mute=False）用户 """
+    # 仅教师或管理员可用
+    if current_user.role not in (UserRole.TEACHER, UserRole.ADMIN):
+        return ApiResponse.error(code=403, message="权限不足")
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return ApiResponse.error(code=404, message="用户不存在")
+
+        user.is_muted = bool(mute)
+        db.commit()
+
+        return ApiResponse.success(
+            data={"user_id": user.id, "is_muted": user.is_muted},
+            message="禁言状态更新成功"
+        )
+    except Exception as e:
+        db.rollback()
+        return ApiResponse.error(code=500, message=f"更新禁言状态失败: {str(e)}")
 
 
 # =========================

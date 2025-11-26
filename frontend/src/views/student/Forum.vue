@@ -91,8 +91,16 @@
                 >
                   {{ post.author?.name || '未知用户' }}
                 </span>
+                <el-tag v-if="post.author?.role === 'teacher'" size="small" type="info" style="margin-left:8px">教师</el-tag>
                 <span class="post-time">{{ post.time }}</span>
-                <el-button size="mini" type="primary" @click.stop="aiSummarize(post.id)" style="margin-left:8px">一键AI总结</el-button>
+                <el-button size="small" type="primary" @click.stop="aiSummarize(post.id)" style="margin-left:8px">一键AI总结</el-button>
+                <!-- 教师管理按钮：仅教师或管理员可见 -->
+                <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin'">
+                  <el-button size="small" type="danger" @click.stop="deletePost(post)" style="margin-left:8px">删除帖子</el-button>
+                  <el-button size="small" type="warning" @click.stop="toggleMuteUser(post.author)" style="margin-left:8px">
+                    {{ post.author?.is_muted ? '解禁用户' : '禁言用户' }}
+                  </el-button>
+                </template>
               </div>
               
               <div class="post-stats">
@@ -198,6 +206,7 @@
                 >
                   {{ comment.author?.name || '未知用户' }}
                 </span>
+                <el-tag v-if="comment.author?.role === 'teacher'" size="small" type="info" style="margin-left:6px">教师</el-tag>
                 <span class="comment-time">{{ comment.time }}</span>
               </div>
             </div>
@@ -211,6 +220,13 @@
                 <el-icon><Star /></el-icon>
                 {{ comment.likes }}
               </span>
+              <!-- 教师或评论作者可见的管理按钮 -->
+              <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin' || comment.author?.id === userStore.user?.id">
+                <el-button size="small" type="danger" @click="deleteComment(comment)" style="margin-left:8px">删除</el-button>
+                <el-button size="small" type="warning" @click="toggleMuteUser(comment.author)" style="margin-left:8px">
+                  {{ comment.author?.is_muted ? '解禁' : '禁言' }}
+                </el-button>
+              </template>
             </div>
             
             <!-- 回复列表 -->
@@ -232,7 +248,14 @@
                   >
                     {{ reply.author?.name || '未知用户' }}：
                   </span>
+                  <el-tag v-if="reply.author?.role === 'teacher'" size="small" type="info" style="margin-left:6px">教师</el-tag>
                   <span class="reply-text">{{ reply.content }}</span>
+                </div>
+                <div class="reply-actions">
+                  <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin' || reply.author?.id === userStore.user?.id">
+                    <el-button size="small" type="danger" @click="deleteComment(reply)" style="margin-left:8px">删除</el-button>
+                    <el-button size="small" type="warning" @click="toggleMuteUser(reply.author)" style="margin-left:8px">{{ reply.author?.is_muted ? '解禁' : '禁言' }}</el-button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -249,13 +272,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import api from '@/utils/api'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 响应式数据
@@ -616,8 +640,21 @@ const loadPosts = async () => {
 }
 
 // 初始化加载帖子
-onMounted(() => {
-  loadPosts()
+onMounted(async () => {
+  await loadPosts()
+  // 帖子加载后检查是否需要打开特定帖子的评论（来自教师监控页）
+  const postId = route.query.post_id
+  if (postId && posts.value.length > 0) {
+    const target = posts.value.find(p => String(p.id) === String(postId))
+    if (target) {
+      // 使用 nextTick 确保 DOM 已更新
+      setTimeout(() => {
+        showComments(target)
+        // 清除 query 参数避免刷新时重复打开
+        router.replace({ name: 'StudentForum', query: {} })
+      }, 100)
+    }
+  }
 })
 
 // 收藏/取消收藏
@@ -664,6 +701,104 @@ const aiSummarize = async (postId) => {
   } catch (err) {
     console.error('AI summarize error', err)
     ElMessage.error('AI 总结请求失败')
+  }
+}
+
+// 教师/管理员：删除帖子
+const deletePost = async (post) => {
+  if (!post || !post.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/posts/${post.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    ElMessage.success('帖子已删除')
+    // 从本地列表移除
+    posts.value = posts.value.filter(p => p.id !== post.id)
+  } catch (err) {
+    console.error('删除帖子失败', err)
+    ElMessage.error(err?.response?.data?.message || '删除帖子失败')
+  }
+}
+
+// 教师/管理员：禁言/解禁用户
+const toggleMuteUser = async (author) => {
+  if (!author || !author.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    const mute = !author.is_muted
+    const res = await axios.put(`http://127.0.0.1:8000/api/auth/users/${author.id}/mute?mute=${mute}`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success(res.data.message || '操作成功')
+      // 更新本地作者状态（界面体现）
+      posts.value = posts.value.map(p => {
+        if (p.author && p.author.id === author.id) {
+          p.author.is_muted = mute
+        }
+        return p
+      })
+      // 如果评论已经加载，也更新评论显示
+      comments.value = comments.value.map(c => {
+        if (c.author && c.author.id === author.id) c.author.is_muted = mute
+        if (c.replies) c.replies = c.replies.map(r => { if (r.author && r.author.id === author.id) r.author.is_muted = mute; return r })
+        return c
+      })
+    } else {
+      ElMessage.error(res.data?.message || '操作失败')
+    }
+  } catch (err) {
+    console.error('禁言操作失败', err)
+    ElMessage.error('禁言操作失败')
+  }
+}
+
+// 删除评论或回复（作者或教师/管理员可用）
+const deleteComment = async (comment) => {
+  if (!comment || !comment.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/comments/${comment.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    ElMessage.success('评论已删除')
+
+    // 如果是顶级评论，则从 comments 列表移除
+    if (!comment.parent_id) {
+      comments.value = comments.value.filter(c => c.id !== comment.id)
+    } else {
+      // 否则在对应父评论的 replies 中移除
+      comments.value = comments.value.map(c => {
+        if (c.replies && c.replies.length) {
+          c.replies = c.replies.filter(r => r.id !== comment.id)
+        }
+        return c
+      })
+    }
+
+    // 刷新帖子列表中的回复计数
+    await loadPosts()
+  } catch (err) {
+    console.error('删除评论失败', err)
+    ElMessage.error(err?.response?.data?.message || '删除评论失败')
   }
 }
 </script>

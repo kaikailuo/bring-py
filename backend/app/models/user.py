@@ -35,6 +35,7 @@ class User(Base):
     bio = Column(String(500), nullable=True, comment="个人简介")
     gender = Column(String(20), nullable=True, comment="性别（male/female/other）")
     phone = Column(String(50), nullable=True, comment="手机号")
+    is_muted = Column(Boolean, default=False, comment="是否被禁言（教师/管理员可设置）")
     # -------------------------
 
     is_active = Column(Boolean, default=True, comment="是否激活")

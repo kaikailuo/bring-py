@@ -23,6 +23,7 @@ class UserBase(BaseModel):
     bio: Optional[str] = None
     gender: Optional[str] = None
     phone: Optional[str] = None
+    is_muted: Optional[bool] = False
     # -------------------------
 
     @validator('username')
