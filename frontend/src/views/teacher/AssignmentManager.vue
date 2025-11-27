@@ -6,6 +6,7 @@
         <el-select v-model="selectedCourse" placeholder="选择课程" size="small" style="min-width:220px" @change="fetchCourseProblems">
           <el-option v-for="c in courses" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
+        <el-button size="small" @click="openCreateCourse">添加课程</el-button>
         <el-button type="primary" @click="openCreateDialog">布置作业</el-button>
       </div>
     </div>
@@ -42,6 +43,13 @@
               <el-button type="danger" @click="removeTest(idx)">移除</el-button>
             </div>
             <el-button type="primary" @click="addTest">添加测试用例</el-button>
+            <div style="margin-top:12px">
+              <div>其他资源（图片等）：</div>
+              <input type="file" multiple @change="onFilesSelected" />
+              <div v-if="form.resources && form.resources.length>0" style="margin-top:8px">
+                <div v-for="(r, i) in form.resources" :key="i">{{ r.filename }} <el-button type="text" @click="removeResource(i)">移除</el-button></div>
+              </div>
+            </div>
           </el-form-item>
         </el-form>
       </div>
@@ -50,6 +58,27 @@
         <el-button type="primary" @click="createProblem">提交并创建</el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加课程对话框 -->
+    <el-dialog title="添加课程" v-model="createCourseVisible" width="40%">
+      <el-form :model="courseForm">
+        <el-form-item label="课程 id" :label-width="'100px'">
+          <el-input v-model="courseForm.id" placeholder="例如 lesson_05" />
+        </el-form-item>
+        <el-form-item label="课程名称" :label-width="'100px'">
+          <el-input v-model="courseForm.name" placeholder="例如 课程五" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createCourseVisible = false">取消</el-button>
+        <el-button type="primary" @click="createCourse">创建</el-button>
+      </template>
+    </el-dialog>
+
+        <!-- 删除课程按钮（右下角） -->
+    <div class="delete-course-btn">
+      <el-button type="danger" size="small" v-if="selectedCourse" @click="confirmDeleteCourse">删除课程</el-button>
+    </div>
   </div>
 </template>
 
@@ -63,7 +92,10 @@ const selectedCourse = ref('')
 const problems = ref([])
 
 const createDialogVisible = ref(false)
-const form = ref({ title: '', description: '', solution: '', tests: [] })
+const form = ref({ title: '', description: '', solution: '', tests: [], resources: [] })
+
+const createCourseVisible = ref(false)
+const courseForm = ref({ id: '', name: '' })
 
 const fetchCourses = async () => {
   try {
@@ -104,6 +136,31 @@ const removeTest = (i) => {
   form.value.tests.splice(i, 1)
 }
 
+const onFilesSelected = (e) => {
+  const files = Array.from(e.target.files || [])
+  const readerPromises = files.map(f => new Promise((resolve) => {
+    const fr = new FileReader()
+    fr.onload = () => {
+      // result is base64 data URL like data:...;base64,XXXX
+      const result = fr.result
+      let b64 = ''
+      if (typeof result === 'string') {
+        const idx = result.indexOf(',')
+        b64 = idx >= 0 ? result.slice(idx + 1) : result
+      }
+      resolve({ filename: f.name, content_b64: b64 })
+    }
+    fr.readAsDataURL(f)
+  }))
+  Promise.all(readerPromises).then(items => {
+    form.value.resources = (form.value.resources || []).concat(items)
+  })
+}
+
+const removeResource = (i) => {
+  form.value.resources.splice(i, 1)
+}
+
 const createProblem = async () => {
   if (!form.value.title.trim()) {
     ElMessage.warning('请填写题目标题')
@@ -114,7 +171,8 @@ const createProblem = async () => {
       title: form.value.title,
       description: form.value.description,
       solution: form.value.solution,
-      tests: form.value.tests
+      tests: form.value.tests,
+      resources: form.value.resources
     })
     ElMessage.success('创建成功')
     createDialogVisible.value = false
@@ -122,6 +180,42 @@ const createProblem = async () => {
   } catch (err) {
     console.error(err)
     ElMessage.error(err.message || '创建失败')
+  }
+}
+
+const openCreateCourse = () => {
+  courseForm.value = { id: '', name: '' }
+  createCourseVisible.value = true
+}
+
+const createCourse = async () => {
+  if (!courseForm.value.id.trim() || !courseForm.value.name.trim()) {
+    ElMessage.warning('请填写课程 id 和名称')
+    return
+  }
+  try {
+    await problemsAPI.createCourse({ id: courseForm.value.id, name: courseForm.value.name })
+    ElMessage.success('课程已创建')
+    createCourseVisible.value = false
+    await fetchCourses()
+  } catch (err) {
+    console.error(err)
+    ElMessage.error(err.message || '创建课程失败')
+  }
+}
+
+const confirmDeleteCourse = async () => {
+  if (!selectedCourse.value) return
+  try {
+    await ElMessageBox.confirm('确定删除此课程及其所有题目？该操作不可恢复', '删除课程', { type: 'warning' })
+    await problemsAPI.deleteCourse(selectedCourse.value)
+    ElMessage.success('已删除课程')
+    // refresh course list
+    await fetchCourses()
+    problems.value = []
+    selectedCourse.value = ''
+  } catch (err) {
+    // cancel or error
   }
 }
 
@@ -143,10 +237,17 @@ onMounted(() => {
 
 <style scoped>
 .assignment-manager {
+  
   padding: 16px;
 }
 .sidebar-header {
   display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+}
+.delete-course-btn {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 12px;
+  margin-top: 16px;
 }
 .problems-list { display:flex; flex-direction:column; gap:12px; }
 .problem-card { padding:12px; }

@@ -18,6 +18,8 @@ from app.services.problems_service import (
     mock_submit_code as svc_mock_submit_code,
     create_problem as svc_create_problem,
     delete_problem as svc_delete_problem,
+    create_course as svc_create_course,
+    delete_course as svc_delete_course,
 )
 import asyncio
 
@@ -77,6 +79,12 @@ class CreateProblemRequest(BaseModel):
     description: str = ''
     solution: str = ''
     tests: list = []
+    resources: list = []
+
+
+class CreateCourseRequest(BaseModel):
+    id: str
+    name: str
 
 @router.get("/courses", summary="获取所有课程")
 async def get_courses():
@@ -90,9 +98,25 @@ async def get_courses():
 @router.post("/courses/{course_id}/problems", summary="创建新题目（教师）")
 async def create_problem_endpoint(course_id: str, request: CreateProblemRequest):
     # course_id 形如 lesson_02
-    res = await asyncio.to_thread(svc_create_problem, course_id, request.title, request.description, request.solution, request.tests)
+    res = await asyncio.to_thread(svc_create_problem, course_id, request.title, request.description, request.solution, request.tests, request.resources)
     if res.get('status') != 'success':
         raise HTTPException(status_code=400, detail=res.get('message', '创建失败'))
+    return res
+
+
+@router.post('/courses', summary='创建课程（教师）')
+async def create_course_endpoint(request: CreateCourseRequest):
+    res = await asyncio.to_thread(svc_create_course, request.id, request.name)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '创建课程失败'))
+    return res
+
+
+@router.delete('/courses/{course_id}', summary='删除课程（教师）')
+async def delete_course_endpoint(course_id: str):
+    res = await asyncio.to_thread(svc_delete_course, course_id)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '删除课程失败'))
     return res
 
 

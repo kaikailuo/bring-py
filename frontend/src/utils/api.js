@@ -134,6 +134,10 @@ export const problemsAPI = {
   createProblem: (courseId, payload) => request(`/problems/courses/${courseId}/problems`, { method: 'POST', body: JSON.stringify(payload) }),
   // 教师端：删除题目
   deleteProblem: (lesson, problem) => request(`/problems/${lesson}/${problem}`, { method: 'DELETE' })
+  ,
+  // 教师端：课程管理
+  createCourse: (payload) => request('/problems/courses', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteCourse: (courseId) => request(`/problems/courses/${courseId}`, { method: 'DELETE' })
 }
 
 export default {

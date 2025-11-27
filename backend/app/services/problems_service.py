@@ -121,7 +121,7 @@ def get_course_problems(course_id: str) -> List[Dict]:
     return problems
 
 
-def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None) -> Dict:
+def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None, resources: Optional[List[Dict]] = None) -> Dict:
     """在指定 lesson 下创建一个新的 problem_xx 目录，写入 README.md, solution.md, test/ 文件，并更新 index.json。
     tests: 可选列表，每项为 {'input': '...', 'output': '...'}
     返回新创建题目的元信息或错误信息。
@@ -175,6 +175,28 @@ def create_problem(lesson: str, title: str, description: str = '', solution: str
                     fo.write(t.get('output', ''))
     except Exception as e:
         return {"status": "error", "message": f"无法写入测试用例: {e}"}
+
+    # 写入资源文件（可选），资源将被放在 problem 下的 assets/ 目录
+    # 允许传入 resources: [{'filename': 'dop.png', 'content_b64': '...'}, ...]
+    if resources:
+        assets_dir = os.path.join(prob_path, 'assets')
+        try:
+            os.makedirs(assets_dir, exist_ok=True)
+            import base64
+            for r in resources:
+                fname = r.get('filename')
+                b64 = r.get('content_b64')
+                if not fname or not b64:
+                    continue
+                try:
+                    data = base64.b64decode(b64)
+                    with open(os.path.join(assets_dir, fname), 'wb') as fo:
+                        fo.write(data)
+                except Exception:
+                    # skip malformed resource
+                    continue
+        except Exception as e:
+            return {"status": "error", "message": f"无法写入资源文件: {e}"}
 
     # 更新 index.json
     index_path = os.path.join(DATA_DIR, 'index.json')
@@ -230,6 +252,56 @@ def delete_problem(lesson: str, problem: str) -> Dict:
         return {"status": "error", "message": f"无法更新 index.json: {e}"}
 
     return {"status": "success", "message": "已删除"}
+
+
+def create_course(course_id: str, name: str) -> Dict:
+    """创建课程（在 courses.json 中添加条目并创建目录）。"""
+    courses_file = os.path.join(DATA_DIR, 'courses.json')
+    try:
+        courses = []
+        if os.path.exists(courses_file):
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                courses = json.load(f) or []
+        # 检查重复 id
+        for c in courses:
+            if c.get('id') == course_id:
+                return {"status": "error", "message": "课程 id 已存在"}
+        courses.append({"id": course_id, "name": name})
+        with open(courses_file, 'w', encoding='utf-8') as f:
+            json.dump(courses, f, ensure_ascii=False, indent=2)
+        # 创建目录
+        os.makedirs(os.path.join(DATA_DIR, course_id), exist_ok=True)
+        return {"status": "success", "id": course_id, "name": name}
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建课程: {e}"}
+
+
+def delete_course(course_id: str) -> Dict:
+    """删除课程：从 courses.json 移除并删除课程目录及其题目，同时从 index.json 中删除相关条目。"""
+    courses_file = os.path.join(DATA_DIR, 'courses.json')
+    try:
+        # 删除目录
+        course_path = os.path.join(DATA_DIR, course_id)
+        if os.path.exists(course_path):
+            shutil.rmtree(course_path)
+        # 更新 courses.json
+        if os.path.exists(courses_file):
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                courses = json.load(f) or []
+            new_courses = [c for c in courses if c.get('id') != course_id]
+            with open(courses_file, 'w', encoding='utf-8') as f:
+                json.dump(new_courses, f, ensure_ascii=False, indent=2)
+        # 更新 index.json：删除 path 以 course_id/ 开头的条目
+        index_path = os.path.join(DATA_DIR, 'index.json')
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+            new_index = [it for it in index if not (isinstance(it, dict) and isinstance(it.get('path'), str) and it.get('path').startswith(f"{course_id}/"))]
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(new_index, f, ensure_ascii=False, indent=2)
+        return {"status": "success", "message": "已删除课程及其题目"}
+    except Exception as e:
+        return {"status": "error", "message": f"删除课程失败: {e}"}
 
 
 def get_problem_markdown_path(lesson: str, problem: str) -> Optional[str]:

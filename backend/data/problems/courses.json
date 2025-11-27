@@ -1,6 +1,18 @@
 [
-  { "id": "lesson_01", "name": "利用Turtle画图" },
-  { "id": "lesson_02", "name": "顺序结构" },
-  { "id": "lesson_03", "name": "循环与分支结构" },
-  { "id": "lesson_04", "name": "选择结构" }
+  {
+    "id": "lesson_01",
+    "name": "利用Turtle画图"
+  },
+  {
+    "id": "lesson_02",
+    "name": "顺序结构"
+  },
+  {
+    "id": "lesson_03",
+    "name": "循环与分支结构"
+  },
+  {
+    "id": "lesson_04",
+    "name": "选择结构"
+  }
 ]
