@@ -395,10 +395,6 @@ const handleCommand = async (command) => {
   }
 }
 
-const createAssignment = () => {
-  // 跳转到作业管理页面进行布置
-  router.push('/teacher/assignment-management')
-}
 
 onMounted(() => {
   // 初始化数据
