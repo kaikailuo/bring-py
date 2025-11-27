@@ -121,6 +121,117 @@ def get_course_problems(course_id: str) -> List[Dict]:
     return problems
 
 
+def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None) -> Dict:
+    """在指定 lesson 下创建一个新的 problem_xx 目录，写入 README.md, solution.md, test/ 文件，并更新 index.json。
+    tests: 可选列表，每项为 {'input': '...', 'output': '...'}
+    返回新创建题目的元信息或错误信息。
+    """
+    # 确保 lesson 目录存在
+    lesson_dir = os.path.join(DATA_DIR, lesson)
+    try:
+        os.makedirs(lesson_dir, exist_ok=True)
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建课程目录: {e}"}
+
+    # 找到下一个可用的 problem 编号（以两位数字格式）
+    existing = [name for name in os.listdir(lesson_dir) if os.path.isdir(os.path.join(lesson_dir, name)) and name.startswith('problem_')]
+    nums = []
+    for n in existing:
+        try:
+            nums.append(int(n.split('_')[-1]))
+        except Exception:
+            pass
+    next_num = max(nums) + 1 if nums else 1
+    prob_dirname = f"problem_{next_num:02d}"
+    prob_path = os.path.join(lesson_dir, prob_dirname)
+
+    try:
+        os.makedirs(prob_path, exist_ok=False)
+    except FileExistsError:
+        return {"status": "error", "message": "题目目录已存在"}
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建题目目录: {e}"}
+
+    # 写入 README.md 和 solution.md
+    try:
+        with open(os.path.join(prob_path, 'README.md'), 'w', encoding='utf-8') as f:
+            f.write(description or '')
+        with open(os.path.join(prob_path, 'solution.md'), 'w', encoding='utf-8') as f:
+            f.write(solution or '')
+    except Exception as e:
+        return {"status": "error", "message": f"无法写入题面或参考答案: {e}"}
+
+    # 创建测试目录并写入测试文件（如果提供）
+    test_dir = os.path.join(prob_path, 'test')
+    try:
+        os.makedirs(test_dir, exist_ok=True)
+        if tests:
+            for idx, t in enumerate(tests, start=1):
+                in_path = os.path.join(test_dir, f"{idx}.in")
+                out_path = os.path.join(test_dir, f"{idx}.out")
+                with open(in_path, 'w', encoding='utf-8') as fi:
+                    fi.write(t.get('input', ''))
+                with open(out_path, 'w', encoding='utf-8') as fo:
+                    fo.write(t.get('output', ''))
+    except Exception as e:
+        return {"status": "error", "message": f"无法写入测试用例: {e}"}
+
+    # 更新 index.json
+    index_path = os.path.join(DATA_DIR, 'index.json')
+    try:
+        index = []
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+        # 尝试从 lesson 名中解析数字
+        lesson_num = None
+        try:
+            lesson_num = int(''.join(filter(str.isdigit, lesson)))
+        except Exception:
+            lesson_num = None
+        prob_num = next_num
+        entry = {
+            "lesson": lesson_num if lesson_num is not None else lesson,
+            "problem": prob_num,
+            "title": title,
+            "path": f"{lesson}/{prob_dirname}",
+            "has_test": bool(tests)
+        }
+        index.append(entry)
+        with open(index_path, 'w', encoding='utf-8') as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return {"status": "error", "message": f"无法更新 index.json: {e}"}
+
+    return {"status": "success", "lesson": lesson, "problem": prob_dirname, "path": entry['path'], "title": title}
+
+
+def delete_problem(lesson: str, problem: str) -> Dict:
+    """删除指定的题目录，并从 index.json 中移除对应条目。"""
+    prob_path = os.path.join(DATA_DIR, lesson, problem)
+    if not os.path.exists(prob_path):
+        return {"status": "error", "message": "题目目录不存在"}
+
+    try:
+        shutil.rmtree(prob_path)
+    except Exception as e:
+        return {"status": "error", "message": f"无法删除题目目录: {e}"}
+
+    # 更新 index.json：删除 path 匹配的条目
+    index_path = os.path.join(DATA_DIR, 'index.json')
+    try:
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+            new_index = [it for it in index if not (isinstance(it, dict) and it.get('path') == f"{lesson}/{problem}")]
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(new_index, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return {"status": "error", "message": f"无法更新 index.json: {e}"}
+
+    return {"status": "success", "message": "已删除"}
+
+
 def get_problem_markdown_path(lesson: str, problem: str) -> Optional[str]:
     md_path = os.path.join(DATA_DIR, lesson, problem, "README.md")
     return md_path if os.path.exists(md_path) else None

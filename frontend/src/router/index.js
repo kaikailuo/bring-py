@@ -120,6 +120,13 @@ const routes = [
         component: () => import('@/views/teacher/QuestionMonitor.vue'),
         meta: { title: '问题监控' }
       }
+      ,
+      {
+        path: 'assignment-management',
+        name: 'AssignmentManagement',
+        component: () => import('@/views/teacher/AssignmentManager.vue'),
+        meta: { title: '作业管理' }
+      }
     ]
   },
   // {

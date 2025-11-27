@@ -144,7 +144,7 @@
                 <el-icon><ChatDotRound /></el-icon>
                 <span>答疑中心</span>
               </div>
-              <div class="action-item" @click="createAssignment">
+              <div class="action-item" @click="$router.push('/teacher/assignment-management')">
                 <el-icon><EditPen /></el-icon>
                 <span>布置作业</span>
               </div>
@@ -396,7 +396,8 @@ const handleCommand = async (command) => {
 }
 
 const createAssignment = () => {
-  ElMessage.info('布置作业功能开发中...')
+  // 跳转到作业管理页面进行布置
+  router.push('/teacher/assignment-management')
 }
 
 onMounted(() => {

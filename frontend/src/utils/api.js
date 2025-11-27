@@ -129,7 +129,11 @@ export const problemsAPI = {
     return res.text()
   },
   run: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/run`, { method: 'POST', body: JSON.stringify({ code }) }),
-  submit: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/submit`, { method: 'POST', body: JSON.stringify({ code }) })
+  submit: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/submit`, { method: 'POST', body: JSON.stringify({ code }) }),
+  // 教师端：创建题目（布置作业）
+  createProblem: (courseId, payload) => request(`/problems/courses/${courseId}/problems`, { method: 'POST', body: JSON.stringify(payload) }),
+  // 教师端：删除题目
+  deleteProblem: (lesson, problem) => request(`/problems/${lesson}/${problem}`, { method: 'DELETE' })
 }
 
 export default {
