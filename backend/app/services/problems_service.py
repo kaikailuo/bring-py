@@ -176,10 +176,10 @@ def create_problem(lesson: str, title: str, description: str = '', solution: str
     except Exception as e:
         return {"status": "error", "message": f"无法写入测试用例: {e}"}
 
-    # 写入资源文件（可选），资源将被放在 problem 下的 assets/ 目录
+    # 写入资源文件（可选），资源将被放在 problem 下
     # 允许传入 resources: [{'filename': 'dop.png', 'content_b64': '...'}, ...]
     if resources:
-        assets_dir = os.path.join(prob_path, 'assets')
+        assets_dir = os.path.join(prob_path)
         try:
             os.makedirs(assets_dir, exist_ok=True)
             import base64
