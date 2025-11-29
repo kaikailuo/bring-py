@@ -121,7 +121,7 @@ def get_course_problems(course_id: str) -> List[Dict]:
     return problems
 
 
-def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None, resources: Optional[List[Dict]] = None) -> Dict:
+def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None, resources: Optional[List[Dict]] = None, has_test: bool = True) -> Dict:
     """在指定 lesson 下创建一个新的 problem_xx 目录，写入 README.md, solution.md, test/ 文件，并更新 index.json。
     tests: 可选列表，每项为 {'input': '...', 'output': '...'}
     返回新创建题目的元信息或错误信息。
@@ -217,7 +217,7 @@ def create_problem(lesson: str, title: str, description: str = '', solution: str
             "problem": prob_num,
             "title": title,
             "path": f"{lesson}/{prob_dirname}",
-            "has_test": bool(tests)
+            "has_test": bool(has_test)
         }
         index.append(entry)
         with open(index_path, 'w', encoding='utf-8') as f:
@@ -539,5 +539,67 @@ async def mock_submit_code(lesson: str, problem: str, code: str) -> Dict:
         testResults.append(entry)
 
     # 构建简要 result 字段供旧前端兼容
+    result_summary = f"通过 {passed_count}/{len(testResults)} 个用例"
+    return {"status": "success", "total": len(testResults), "passed": passed_count, "result": result_summary, "testResults": testResults}
+
+
+def run_code_against_tests(code: str, tests: List[Dict], timeout_per_test: int = 5) -> Dict:
+    """在后端运行任意代码并针对给定的测试列表（每项包含 'input' 和 'output'）进行检测。
+    返回与 mock_submit_code 类似的结构：{ status, total, passed, result, testResults }
+    该函数为同步函数，适合用 asyncio.to_thread 调用。
+    """
+    testResults = []
+    passed_count = 0
+
+    def _run_single_from_strings(stdin_data: str, expected_raw: str):
+        # 基于 submit 中的运行逻辑复用
+        def _run(code_src: str, stdin_data: str, timeout: int = timeout_per_test):
+            workdir = tempfile.mkdtemp(prefix="check_")
+            try:
+                file_path = os.path.join(workdir, "main.py")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(code_src)
+
+                proc = subprocess.run([
+                    "python", file_path
+                ], input=stdin_data.encode("utf-8"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+
+                stdout = proc.stdout.decode("utf-8", errors="replace")
+                stderr = proc.stderr.decode("utf-8", errors="replace")
+                return proc.returncode, stdout, stderr, False
+            except subprocess.TimeoutExpired:
+                return -1, "", "Timeout", True
+            except Exception as e:
+                return -2, "", str(e), False
+            finally:
+                try:
+                    shutil.rmtree(workdir)
+                except Exception:
+                    pass
+
+        run_res = _run(code, stdin_data)
+        formatted = _format_run_result(run_res, expected_raw)
+        return formatted
+
+    for idx, t in enumerate(tests):
+        inp = t.get('input', '')
+        out = t.get('output', '')
+        formatted = _run_single_from_strings(inp, out)
+        ok = formatted.get('passed', False)
+        if ok:
+            passed_count += 1
+        entry = {
+            'test': str(idx + 1),
+            'passed': ok,
+            'input': inp,
+            'expected': formatted.get('expected', ''),
+            'actual': formatted.get('output', '')
+        }
+        if 'stderr' in formatted:
+            entry['stderr'] = formatted['stderr']
+        if 'error' in formatted:
+            entry['error'] = formatted['error']
+        testResults.append(entry)
+
     result_summary = f"通过 {passed_count}/{len(testResults)} 个用例"
     return {"status": "success", "total": len(testResults), "passed": passed_count, "result": result_summary, "testResults": testResults}

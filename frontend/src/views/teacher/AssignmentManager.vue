@@ -23,39 +23,22 @@
       </el-card>
     </div>
 
-    <el-dialog title="布置新作业" v-model="createDialogVisible" width="60%">
+    <el-dialog title="布置新作业 - 步骤 1：确认" v-model="createDialogVisible" width="480px">
       <div>
         <el-form :model="form">
-          <el-form-item label="题目标题" :label-width="'100px'">
-            <el-input v-model="form.title" />
+          <el-form-item label="所属课程" :label-width="'80px'">
+            <el-select v-model="form.course" placeholder="选择课程">
+              <el-option v-for="c in courses" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
           </el-form-item>
-          <el-form-item label="题面 (README.md)" :label-width="'100px'">
-            <el-input type="textarea" :rows="6" v-model="form.description" />
-          </el-form-item>
-          <el-form-item label="参考答案 (solution.md)" :label-width="'100px'">
-            <el-input type="textarea" :rows="6" v-model="form.solution" />
-          </el-form-item>
-          <el-form-item label="测试用例" :label-width="'100px'">
-            <div v-for="(t, idx) in form.tests" :key="idx" class="test-row">
-              <div>测试 {{ idx + 1 }}</div>
-              <el-input type="textarea" :rows="3" placeholder="输入" v-model="t.input" />
-              <el-input type="textarea" :rows="3" placeholder="期望输出" v-model="t.output" />
-              <el-button type="danger" @click="removeTest(idx)">移除</el-button>
-            </div>
-            <el-button type="primary" @click="addTest">添加测试用例</el-button>
-            <div style="margin-top:12px">
-              <div>其他资源（图片等）：</div>
-              <input type="file" multiple @change="onFilesSelected" />
-              <div v-if="form.resources && form.resources.length>0" style="margin-top:8px">
-                <div v-for="(r, i) in form.resources" :key="i">{{ r.filename }} <el-button type="text" @click="removeResource(i)">移除</el-button></div>
-              </div>
-            </div>
+          <el-form-item label="题目标题" :label-width="'80px'">
+            <el-input v-model="form.title" placeholder="填写题目标题" />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="createProblem">提交并创建</el-button>
+        <el-button type="primary" @click="goToWizard">下一步</el-button>
       </template>
     </el-dialog>
 
@@ -84,6 +67,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { problemsAPI } from '@/utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -91,8 +75,10 @@ const courses = ref([])
 const selectedCourse = ref('')
 const problems = ref([])
 
+const router = useRouter()
+
 const createDialogVisible = ref(false)
-const form = ref({ title: '', description: '', solution: '', tests: [], resources: [] })
+const form = ref({ course: '', title: '', description: '', solution: '', tests: [], resources: [] })
 
 const createCourseVisible = ref(false)
 const courseForm = ref({ id: '', name: '' })
@@ -121,12 +107,23 @@ const fetchCourseProblems = async (courseId) => {
 }
 
 const openCreateDialog = () => {
-  if (!selectedCourse.value) {
-    ElMessage.warning('请先选择课程')
+  // 弹窗第一步：只确认所属课程与题目标题，默认选择当前选中的课程
+  form.value = { course: selectedCourse.value || '', title: '', description: '', solution: '', tests: [], resources: [] }
+  createDialogVisible.value = true
+}
+
+const goToWizard = () => {
+  if (!form.value.course) {
+    ElMessage.warning('请选择所属课程')
     return
   }
-  form.value = { title: '', description: '', solution: '', tests: [] }
-  createDialogVisible.value = true
+  if (!form.value.title || !form.value.title.trim()) {
+    ElMessage.warning('请填写题目标题')
+    return
+  }
+  // 关闭弹窗并跳转到创建向导页面，携带初始课程与标题
+  createDialogVisible.value = false
+  router.push({ name: 'CreateAssignment', query: { course: form.value.course, title: form.value.title } })
 }
 
 const addTest = () => {

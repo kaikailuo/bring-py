@@ -135,6 +135,8 @@ export const problemsAPI = {
   // 教师端：删除题目
   deleteProblem: (lesson, problem) => request(`/problems/${lesson}/${problem}`, { method: 'DELETE' })
   ,
+  // 向导用：检查测评集（在后端运行给定 solution 与 tests）
+  checkTests: (code, tests) => request('/problems/check_tests', { method: 'POST', body: JSON.stringify({ code, tests }) }),
   // 教师端：课程管理
   createCourse: (payload) => request('/problems/courses', { method: 'POST', body: JSON.stringify(payload) }),
   deleteCourse: (courseId) => request(`/problems/courses/${courseId}`, { method: 'DELETE' })

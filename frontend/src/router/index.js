@@ -11,6 +11,7 @@ const routes = [
     name: 'Home',
     component: () => import('@/views/Home.vue'),
     meta: { title: '首页' }
+
   },
   {
     path: '/login',
@@ -126,6 +127,12 @@ const routes = [
         name: 'AssignmentManagement',
         component: () => import('@/views/teacher/AssignmentManager.vue'),
         meta: { title: '作业管理' }
+      },
+      {
+        path: 'create-assignment',
+        name: 'CreateAssignment',
+        component: () => import('@/views/teacher/CreateAssignmentWizard.vue'),
+        meta: { title: '布置作业向导' }
       }
     ]
   },

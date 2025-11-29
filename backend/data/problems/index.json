@@ -152,5 +152,12 @@
     "title": "例题4-4：购书问题",
     "path": "lesson_04/problem_04",
     "has_test": true
+  },
+  {
+    "lesson": 1,
+    "problem": 2,
+    "title": "111",
+    "path": "lesson_01/problem_02",
+    "has_test": false
   }
 ]
