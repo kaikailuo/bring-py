@@ -8,7 +8,8 @@ import * as monaco from 'monaco-editor'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  readOnly: { type: Boolean, default: false }
+  readOnly: { type: Boolean, default: false },
+  language: { type: String, default: 'python' }
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -18,7 +19,7 @@ let editor = null
 onMounted(() => {
   editor = monaco.editor.create(container.value, {
     value: props.modelValue || '',
-    language: 'python',
+    language: props.language || 'python',
     automaticLayout: true,
     minimap: { enabled: false },
     scrollBeyondLastLine: false,
@@ -49,6 +50,19 @@ watch(() => props.modelValue, (v) => {
   const model = editor.getModel()
   if (model && model.getValue() !== v) {
     model.setValue(v || '')
+  }
+})
+
+// 监听语言变化并切换模型语言
+watch(() => props.language, (lang) => {
+  if (!editor) return
+  const model = editor.getModel()
+  if (model && lang) {
+    try {
+      monaco.editor.setModelLanguage(model, lang)
+    } catch (e) {
+      // ignore if language not registered
+    }
   }
 })
 </script>

@@ -38,7 +38,7 @@
         </div>
 
         <div v-if="!showPreview">
-          <MonacoEditor v-model="currentContent" />
+          <MonacoEditor v-model="currentContent" language="markdown" />
         </div>
         <div v-else class="markdown-preview" v-html="renderedCurrent"></div>
       </div>
@@ -230,14 +230,121 @@ function onFilesSelected(e) {
 }
 
 function viewResource(r) {
-  // 打开 dataUrl
-  if (r.dataUrl) window.open(r.dataUrl, '_blank')
+  openResourcePreview(r)
 }
 
 function removeResource(i) {
   resources.value.splice(i, 1)
   saveDraft()
 }
+
+function openResourcePreview(r) {
+  if (!r || !r.dataUrl) return;
+
+  const mime = r.dataUrl.split(";")[0].replace("data:", "");
+  const win = window.open("", "_blank");
+
+  // 基础样式
+  win.document.write(`
+    <html>
+      <head>
+        <title>${r.filename}</title>
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            background: #f2f2f2;
+            font-family: sans-serif;
+          }
+          .container {
+            padding: 20px;
+            text-align: center;
+          }
+          img, video, audio, embed, iframe {
+            max-width: 100%;
+            max-height: 90vh;
+          }
+          pre {
+            text-align: left;
+            white-space: pre-wrap;
+            background: #222;
+            color: #eee;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+          }
+          .download {
+            margin-top: 20px;
+            display: inline-block;
+            padding: 10px 16px;
+            background: #409eff;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+  `);
+
+  // 🎨 不同类型文件分开渲染
+  if (mime.startsWith("image/")) {
+    win.document.write(`<img src="${r.dataUrl}" />`);
+  }
+  else if (mime === "application/pdf") {
+    win.document.write(`
+      <embed src="${r.dataUrl}" type="application/pdf" width="100%" height="90vh"/>
+    `);
+  }
+  else if (mime.startsWith("text/") || mime === "application/json") {
+    const text = atob(r.content_b64 || "");
+    win.document.write(`<pre>${escapeHtml(text)}</pre>`);
+  }
+  else if (mime === "text/markdown" || r.filename.endsWith(".md")) {
+    const text = atob(r.content_b64 || "");
+    win.document.write(`
+      <pre>${escapeHtml(text)}</pre>
+    `);
+  }
+  else if (mime.startsWith("video/")) {
+    win.document.write(`
+      <video src="${r.dataUrl}" controls></video>
+    `);
+  }
+  else if (mime.startsWith("audio/")) {
+    win.document.write(`
+      <audio src="${r.dataUrl}" controls></audio>
+    `);
+  }
+  else {
+    // 未知类型，提供下载
+    win.document.write(`
+      <p>无法直接预览此文件类型：${mime}</p>
+      <a class="download" href="${r.dataUrl}" download="${r.filename}">点击下载</a>
+    `);
+  }
+
+  win.document.write(`
+        <br/>
+        <a class="download" href="${r.dataUrl}" download="${r.filename}">下载 ${r.filename}</a>
+        </div>
+      </body>
+    </html>
+  `);
+
+  win.document.close();
+}
+
+// HTML 转义，避免代码类文件污染页面
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 
 function prevStep() {
   if (activeStep.value > 1) activeStep.value -= 1

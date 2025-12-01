@@ -150,7 +150,7 @@
             </div>
 
             <div class="editor-content">
-              <MonacoEditor v-model="currentCode" />
+              <MonacoEditor v-model="currentCode" language="python" />
             </div>
           </div>
         </div>
