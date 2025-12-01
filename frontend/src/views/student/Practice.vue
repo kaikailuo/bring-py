@@ -23,7 +23,7 @@
         <h3>选择一个题目开始练习</h3>
         <div style="display:flex; gap:8px; align-items:center">
           <el-select v-model="selectedCourse" placeholder="选择课程" size="small" style="min-width:180px" @change="fetchCourseProblems">
-            <el-option v-for="c in courses" :key="c" :label="c" :value="c" />
+            <el-option v-for="c in courses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
           <el-button size="small" @click="refreshProblems">
             <el-icon><Refresh /></el-icon>
@@ -150,7 +150,7 @@
             </div>
 
             <div class="editor-content">
-              <MonacoEditor v-model="currentCode" />
+              <MonacoEditor v-model="currentCode" language="python" />
             </div>
           </div>
         </div>
@@ -439,11 +439,12 @@ const refreshProblems = () => {
 
 // 获取课程列表并自动加载第一个课程的题目
 const fetchCourses = async () => {
-  try {
+    try {
     const res = await problemsAPI.getCourses()
     courses.value = res.courses || []
     if (courses.value.length > 0) {
-      selectedCourse.value = courses.value[0]
+      // courses 为 [{id,name}]，默认选择第一个的 id
+      selectedCourse.value = courses.value[0].id
       await fetchCourseProblems(selectedCourse.value)
     }
   } catch (err) {

@@ -28,25 +28,68 @@ def load_index() -> Optional[List[Dict]]:
 
 
 def get_courses() -> List[str]:
-    """返回课程列表，优先使用 index.json 的 path 字段抽取课程名；回退到目录扫描"""
+    """返回课程列表。
+    优先读取 `courses.json`（若存在），格式为 [{id,name}]；
+    否则从 `index.json` 或目录扫描中自动推断。
+    """
+    # 优先读取 courses.json（便于集中管理课程名称）
+    courses_file = os.path.join(DATA_DIR, "courses.json")
+    if os.path.exists(courses_file):
+        try:
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # 简单验证
+                if isinstance(data, list):
+                    good = True
+                    for it in data:
+                        if not isinstance(it, dict) or 'id' not in it or 'name' not in it:
+                            good = False
+                            break
+                    if good:
+                        return data
+        except Exception:
+            # 若解析失败，继续回退逻辑
+            pass
+
     data = load_index()
-    courses_set = set()
+    courses_set = []  # 保持列表以保证顺序
+    seen = set()
     if data:
         for item in data:
             path = item.get("path") if isinstance(item, dict) else None
             if path:
                 parts = path.split("/")
                 if parts:
-                    courses_set.add(parts[0])
+                    cid = parts[0]
+                    if cid not in seen:
+                        seen.add(cid)
+                        courses_set.append(cid)
 
     if not courses_set:
-        # 目录扫描回退
+        # 目录扫描回退，按目录名排序
         if os.path.exists(DATA_DIR):
-            for name in os.listdir(DATA_DIR):
+            for name in sorted(os.listdir(DATA_DIR)):
                 if os.path.isdir(os.path.join(DATA_DIR, name)):
-                    courses_set.add(name)
+                    courses_set.append(name)
 
-    return sorted(courses_set)
+    # 将 id 转为友好名称，例如 lesson_01 -> 课程一
+    def _to_name(cid: str) -> str:
+        # 尝试解析数字部分
+        import re
+        m = re.search(r"(\d+)", cid)
+        if m:
+            try:
+                n = int(m.group(1))
+                chinese = ["零","一","二","三","四","五","六","七","八","九","十",
+                           "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十"]
+                if 0 <= n < len(chinese):
+                    return f"课程{chinese[n]}"
+            except Exception:
+                pass
+        # 无法解析则直接返回原 id
+        return cid
+
+    return [{"id": cid, "name": _to_name(cid)} for cid in courses_set]
 
 
 def get_course_problems(course_id: str) -> List[Dict]:
@@ -76,6 +119,189 @@ def get_course_problems(course_id: str) -> List[Dict]:
         if os.path.isdir(os.path.join(course_path, name)):
             problems.append({"problem": name, "title": None, "path": f"{course_id}/{name}"})
     return problems
+
+
+def create_problem(lesson: str, title: str, description: str = '', solution: str = '', tests: Optional[List[Dict]] = None, resources: Optional[List[Dict]] = None, has_test: bool = True) -> Dict:
+    """在指定 lesson 下创建一个新的 problem_xx 目录，写入 README.md, solution.md, test/ 文件，并更新 index.json。
+    tests: 可选列表，每项为 {'input': '...', 'output': '...'}
+    返回新创建题目的元信息或错误信息。
+    """
+    # 确保 lesson 目录存在
+    lesson_dir = os.path.join(DATA_DIR, lesson)
+    try:
+        os.makedirs(lesson_dir, exist_ok=True)
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建课程目录: {e}"}
+
+    # 找到下一个可用的 problem 编号（以两位数字格式）
+    existing = [name for name in os.listdir(lesson_dir) if os.path.isdir(os.path.join(lesson_dir, name)) and name.startswith('problem_')]
+    nums = []
+    for n in existing:
+        try:
+            nums.append(int(n.split('_')[-1]))
+        except Exception:
+            pass
+    next_num = max(nums) + 1 if nums else 1
+    prob_dirname = f"problem_{next_num:02d}"
+    prob_path = os.path.join(lesson_dir, prob_dirname)
+
+    try:
+        os.makedirs(prob_path, exist_ok=False)
+    except FileExistsError:
+        return {"status": "error", "message": "题目目录已存在"}
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建题目目录: {e}"}
+
+    # 写入 README.md 和 solution.md
+    try:
+        with open(os.path.join(prob_path, 'README.md'), 'w', encoding='utf-8') as f:
+            f.write(description or '')
+        with open(os.path.join(prob_path, 'solution.md'), 'w', encoding='utf-8') as f:
+            f.write(solution or '')
+    except Exception as e:
+        return {"status": "error", "message": f"无法写入题面或参考答案: {e}"}
+
+    # 创建测试目录并写入测试文件（如果提供）
+    test_dir = os.path.join(prob_path, 'test')
+    try:
+        os.makedirs(test_dir, exist_ok=True)
+        if tests:
+            for idx, t in enumerate(tests, start=1):
+                in_path = os.path.join(test_dir, f"{idx}.in")
+                out_path = os.path.join(test_dir, f"{idx}.out")
+                with open(in_path, 'w', encoding='utf-8') as fi:
+                    fi.write(t.get('input', ''))
+                with open(out_path, 'w', encoding='utf-8') as fo:
+                    fo.write(t.get('output', ''))
+    except Exception as e:
+        return {"status": "error", "message": f"无法写入测试用例: {e}"}
+
+    # 写入资源文件（可选），资源将被放在 problem 下
+    # 允许传入 resources: [{'filename': 'dop.png', 'content_b64': '...'}, ...]
+    if resources:
+        assets_dir = os.path.join(prob_path)
+        try:
+            os.makedirs(assets_dir, exist_ok=True)
+            import base64
+            for r in resources:
+                fname = r.get('filename')
+                b64 = r.get('content_b64')
+                if not fname or not b64:
+                    continue
+                try:
+                    data = base64.b64decode(b64)
+                    with open(os.path.join(assets_dir, fname), 'wb') as fo:
+                        fo.write(data)
+                except Exception:
+                    # skip malformed resource
+                    continue
+        except Exception as e:
+            return {"status": "error", "message": f"无法写入资源文件: {e}"}
+
+    # 更新 index.json
+    index_path = os.path.join(DATA_DIR, 'index.json')
+    try:
+        index = []
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+        # 尝试从 lesson 名中解析数字
+        lesson_num = None
+        try:
+            lesson_num = int(''.join(filter(str.isdigit, lesson)))
+        except Exception:
+            lesson_num = None
+        prob_num = next_num
+        entry = {
+            "lesson": lesson_num if lesson_num is not None else lesson,
+            "problem": prob_num,
+            "title": title,
+            "path": f"{lesson}/{prob_dirname}",
+            "has_test": bool(has_test)
+        }
+        index.append(entry)
+        with open(index_path, 'w', encoding='utf-8') as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return {"status": "error", "message": f"无法更新 index.json: {e}"}
+
+    return {"status": "success", "lesson": lesson, "problem": prob_dirname, "path": entry['path'], "title": title}
+
+
+def delete_problem(lesson: str, problem: str) -> Dict:
+    """删除指定的题目录，并从 index.json 中移除对应条目。"""
+    prob_path = os.path.join(DATA_DIR, lesson, problem)
+    if not os.path.exists(prob_path):
+        return {"status": "error", "message": "题目目录不存在"}
+
+    try:
+        shutil.rmtree(prob_path)
+    except Exception as e:
+        return {"status": "error", "message": f"无法删除题目目录: {e}"}
+
+    # 更新 index.json：删除 path 匹配的条目
+    index_path = os.path.join(DATA_DIR, 'index.json')
+    try:
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+            new_index = [it for it in index if not (isinstance(it, dict) and it.get('path') == f"{lesson}/{problem}")]
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(new_index, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return {"status": "error", "message": f"无法更新 index.json: {e}"}
+
+    return {"status": "success", "message": "已删除"}
+
+
+def create_course(course_id: str, name: str) -> Dict:
+    """创建课程（在 courses.json 中添加条目并创建目录）。"""
+    courses_file = os.path.join(DATA_DIR, 'courses.json')
+    try:
+        courses = []
+        if os.path.exists(courses_file):
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                courses = json.load(f) or []
+        # 检查重复 id
+        for c in courses:
+            if c.get('id') == course_id:
+                return {"status": "error", "message": "课程 id 已存在"}
+        courses.append({"id": course_id, "name": name})
+        with open(courses_file, 'w', encoding='utf-8') as f:
+            json.dump(courses, f, ensure_ascii=False, indent=2)
+        # 创建目录
+        os.makedirs(os.path.join(DATA_DIR, course_id), exist_ok=True)
+        return {"status": "success", "id": course_id, "name": name}
+    except Exception as e:
+        return {"status": "error", "message": f"无法创建课程: {e}"}
+
+
+def delete_course(course_id: str) -> Dict:
+    """删除课程：从 courses.json 移除并删除课程目录及其题目，同时从 index.json 中删除相关条目。"""
+    courses_file = os.path.join(DATA_DIR, 'courses.json')
+    try:
+        # 删除目录
+        course_path = os.path.join(DATA_DIR, course_id)
+        if os.path.exists(course_path):
+            shutil.rmtree(course_path)
+        # 更新 courses.json
+        if os.path.exists(courses_file):
+            with open(courses_file, 'r', encoding='utf-8') as f:
+                courses = json.load(f) or []
+            new_courses = [c for c in courses if c.get('id') != course_id]
+            with open(courses_file, 'w', encoding='utf-8') as f:
+                json.dump(new_courses, f, ensure_ascii=False, indent=2)
+        # 更新 index.json：删除 path 以 course_id/ 开头的条目
+        index_path = os.path.join(DATA_DIR, 'index.json')
+        if os.path.exists(index_path):
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f) or []
+            new_index = [it for it in index if not (isinstance(it, dict) and isinstance(it.get('path'), str) and it.get('path').startswith(f"{course_id}/"))]
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(new_index, f, ensure_ascii=False, indent=2)
+        return {"status": "success", "message": "已删除课程及其题目"}
+    except Exception as e:
+        return {"status": "error", "message": f"删除课程失败: {e}"}
 
 
 def get_problem_markdown_path(lesson: str, problem: str) -> Optional[str]:
@@ -313,5 +539,67 @@ async def mock_submit_code(lesson: str, problem: str, code: str) -> Dict:
         testResults.append(entry)
 
     # 构建简要 result 字段供旧前端兼容
+    result_summary = f"通过 {passed_count}/{len(testResults)} 个用例"
+    return {"status": "success", "total": len(testResults), "passed": passed_count, "result": result_summary, "testResults": testResults}
+
+
+def run_code_against_tests(code: str, tests: List[Dict], timeout_per_test: int = 5) -> Dict:
+    """在后端运行任意代码并针对给定的测试列表（每项包含 'input' 和 'output'）进行检测。
+    返回与 mock_submit_code 类似的结构：{ status, total, passed, result, testResults }
+    该函数为同步函数，适合用 asyncio.to_thread 调用。
+    """
+    testResults = []
+    passed_count = 0
+
+    def _run_single_from_strings(stdin_data: str, expected_raw: str):
+        # 基于 submit 中的运行逻辑复用
+        def _run(code_src: str, stdin_data: str, timeout: int = timeout_per_test):
+            workdir = tempfile.mkdtemp(prefix="check_")
+            try:
+                file_path = os.path.join(workdir, "main.py")
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(code_src)
+
+                proc = subprocess.run([
+                    "python", file_path
+                ], input=stdin_data.encode("utf-8"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+
+                stdout = proc.stdout.decode("utf-8", errors="replace")
+                stderr = proc.stderr.decode("utf-8", errors="replace")
+                return proc.returncode, stdout, stderr, False
+            except subprocess.TimeoutExpired:
+                return -1, "", "Timeout", True
+            except Exception as e:
+                return -2, "", str(e), False
+            finally:
+                try:
+                    shutil.rmtree(workdir)
+                except Exception:
+                    pass
+
+        run_res = _run(code, stdin_data)
+        formatted = _format_run_result(run_res, expected_raw)
+        return formatted
+
+    for idx, t in enumerate(tests):
+        inp = t.get('input', '')
+        out = t.get('output', '')
+        formatted = _run_single_from_strings(inp, out)
+        ok = formatted.get('passed', False)
+        if ok:
+            passed_count += 1
+        entry = {
+            'test': str(idx + 1),
+            'passed': ok,
+            'input': inp,
+            'expected': formatted.get('expected', ''),
+            'actual': formatted.get('output', '')
+        }
+        if 'stderr' in formatted:
+            entry['stderr'] = formatted['stderr']
+        if 'error' in formatted:
+            entry['error'] = formatted['error']
+        testResults.append(entry)
+
     result_summary = f"通过 {passed_count}/{len(testResults)} 个用例"
     return {"status": "success", "total": len(testResults), "passed": passed_count, "result": result_summary, "testResults": testResults}

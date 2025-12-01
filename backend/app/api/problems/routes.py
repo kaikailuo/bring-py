@@ -16,7 +16,13 @@ from app.services.problems_service import (
     get_problem_solution_path as svc_get_problem_solution_path,
     mock_run_code as svc_mock_run_code,
     mock_submit_code as svc_mock_submit_code,
+    run_code_against_tests as svc_run_code_against_tests,
+    create_problem as svc_create_problem,
+    delete_problem as svc_delete_problem,
+    create_course as svc_create_course,
+    delete_course as svc_delete_course,
 )
+import asyncio
 
 router = APIRouter(prefix="/problems", tags=["题目管理"])
 
@@ -68,6 +74,20 @@ async def get_problem_solution(lesson: str, problem: str):
 class CodeExecutionRequest(BaseModel):
     code: str
 
+
+class CreateProblemRequest(BaseModel):
+    title: str
+    description: str = ''
+    solution: str = ''
+    tests: list = []
+    resources: list = []
+    has_test: bool = True
+
+
+class CreateCourseRequest(BaseModel):
+    id: str
+    name: str
+
 @router.get("/courses", summary="获取所有课程")
 async def get_courses():
     """返回课程列表（由服务层提供）"""
@@ -75,6 +95,39 @@ async def get_courses():
     if not courses:
         raise HTTPException(status_code=404, detail="未找到任何课程")
     return {"courses": courses}
+
+
+@router.post("/courses/{course_id}/problems", summary="创建新题目（教师）")
+async def create_problem_endpoint(course_id: str, request: CreateProblemRequest):
+    # course_id 形如 lesson_02
+    res = await asyncio.to_thread(svc_create_problem, course_id, request.title, request.description, request.solution, request.tests, request.resources, request.has_test)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '创建失败'))
+    return res
+
+
+@router.post('/courses', summary='创建课程（教师）')
+async def create_course_endpoint(request: CreateCourseRequest):
+    res = await asyncio.to_thread(svc_create_course, request.id, request.name)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '创建课程失败'))
+    return res
+
+
+@router.delete('/courses/{course_id}', summary='删除课程（教师）')
+async def delete_course_endpoint(course_id: str):
+    res = await asyncio.to_thread(svc_delete_course, course_id)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '删除课程失败'))
+    return res
+
+
+@router.delete("/{lesson}/{problem}", summary="删除题目（教师）")
+async def delete_problem_endpoint(lesson: str, problem: str):
+    res = await asyncio.to_thread(svc_delete_problem, lesson, problem)
+    if res.get('status') != 'success':
+        raise HTTPException(status_code=400, detail=res.get('message', '删除失败'))
+    return res
 
 @router.get("/courses/{course_id}/problems", summary="获取课程下的题目")
 async def get_course_problems(course_id: str):
@@ -99,3 +152,17 @@ async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest):
     模拟提交代码并返回测评结果
     """
     return await svc_mock_submit_code(lesson, problem, request.code)
+
+
+class CheckTestsRequest(BaseModel):
+    code: str
+    tests: list
+
+
+@router.post('/check_tests', summary='检查测评集（教师向导用）')
+async def check_tests(request: CheckTestsRequest):
+    """接收任意代码与 tests（[{input, output}, ...]），在后端运行并返回每个用例的结果。
+    该接口不创建题目，仅用于向导中检测测评集是否正确。
+    """
+    res = await asyncio.to_thread(lambda: svc_run_code_against_tests(request.code, request.tests))
+    return res

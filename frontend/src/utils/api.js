@@ -221,7 +221,17 @@ export const problemsAPI = {
     return res.text()
   },
   run: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/run`, { method: 'POST', body: JSON.stringify({ code }) }),
-  submit: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/submit`, { method: 'POST', body: JSON.stringify({ code }) })
+  submit: (lesson, problem, code) => request(`/problems/${lesson}/${problem}/submit`, { method: 'POST', body: JSON.stringify({ code }) }),
+  // 教师端：创建题目（布置作业）
+  createProblem: (courseId, payload) => request(`/problems/courses/${courseId}/problems`, { method: 'POST', body: JSON.stringify(payload) }),
+  // 教师端：删除题目
+  deleteProblem: (lesson, problem) => request(`/problems/${lesson}/${problem}`, { method: 'DELETE' })
+  ,
+  // 向导用：检查测评集（在后端运行给定 solution 与 tests）
+  checkTests: (code, tests) => request('/problems/check_tests', { method: 'POST', body: JSON.stringify({ code, tests }) }),
+  // 教师端：课程管理
+  createCourse: (payload) => request('/problems/courses', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteCourse: (courseId) => request(`/problems/courses/${courseId}`, { method: 'DELETE' })
 }
 
 
