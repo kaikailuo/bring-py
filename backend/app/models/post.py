@@ -27,6 +27,18 @@ class Post(Base):
 
     # 关联关系
     author = relationship("User", backref="posts")
+    comments = relationship(
+        "Comment",
+        back_populates="post",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+    favorites = relationship(
+        "Favorite",
+        back_populates="post",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     def __repr__(self):
         return f"<Post(id={self.id}, title='{self.title}', category='{self.category}')>"
