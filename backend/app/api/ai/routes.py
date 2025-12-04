@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-router = APIRouter()
+router = APIRouter(prefix='/ai', tags=['AI'])
 
 
 class AISummarizeRequest(BaseModel):
@@ -15,7 +15,7 @@ class AISummarizeResponse(BaseModel):
     summary: Optional[str] = None
 
 
-@router.post('/ai/summarize', response_model=AISummarizeResponse)
+@router.post('/summarize', response_model=AISummarizeResponse)
 async def summarize_post(req: AISummarizeRequest):
     """
     占位：接收帖子ID并触发 AI 总结任务。

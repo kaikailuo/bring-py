@@ -411,6 +411,12 @@ export const resourceAPI = {
   }
 };
 
+// AI 相关 API
+export const aiAPI = {
+  // 请求后端对指定帖子进行 AI 总结
+  summarize: (postId) => request('/ai/summarize', { method: 'POST', body: JSON.stringify({ post_id: postId }) })
+}
+
 // 通用 http 方法，放在默认导出之前以避免暂时性死区（TDZ）错误
 export const http = {
   get: (url) => request(url, { method: 'GET' }),
@@ -425,6 +431,7 @@ export default {
   adminAPI,
   problemsAPI,
   resourceAPI,
+  aiAPI,
   http
 };
 
