@@ -50,36 +50,82 @@ def init_db():
     # 创建所有表
     Base.metadata.create_all(bind=engine)
     
-    # 创建默认管理员账户
-    create_default_admin()
+    # 创建默认账户（学生和教师）
+    create_default_accounts()
 
 
-def create_default_admin():
+def create_default_accounts():
     """
-    创建默认管理员账户
+    创建默认账户：8 个学生、2 个老师
+
+    规则：
+    - username = "身份+序号"，如 student1, teacher1
+    - password = "123456"
+    - role = UserRole.STUDENT / UserRole.TEACHER
+    - name = 一些中文名（非张三李四）
+    - email = "序号@example.com"，学生使用 1-8，教师使用 9-10
     """
     from app.services.auth import AuthService
     from app.schemas.user import UserCreate
-    
+    from app.models.user import UserRole
+
     db = SessionLocal()
     try:
-        # 检查是否已存在管理员账户
         auth_service = AuthService(db)
-        admin_user = auth_service.get_user_by_username("admin")
-        
-        if not admin_user:
-            # 创建默认管理员账户
-            admin_data = UserCreate(
-                username="admin",
-                password="admin123",
-                role="admin",
-                name="系统管理员",
-                email="admin@example.com"
+
+        # 学生账户（1-8）
+        student_names = [
+            "王怡然",
+            "刘思源",
+            "陈馨予",
+            "赵明轩",
+            "周婧涵",
+            "胡雅楠",
+            "侯子辰",
+            "钱悦彤",
+        ]
+
+        for i in range(1, 9):
+            username = f"student{i}"
+            email = f"{i}@example.com"
+            # 检查是否存在
+            if auth_service.get_user_by_username(username) or auth_service.get_user_by_email(email):
+                continue
+            user_data = UserCreate(
+                username=username,
+                password="123456",
+                role=UserRole.STUDENT,
+                name=student_names[i-1],
+                email=email
             )
-            auth_service.create_user(admin_data)
-            print("默认管理员账户已创建: admin/admin123")
-        
+            try:
+                auth_service.create_user(user_data)
+                print(f"已创建学生账户: {username}/123456")
+            except Exception as e:
+                print(f"创建学生 {username} 失败: {e}")
+
+        # 教师账户（teacher1, teacher2），emails 9@example.com, 10@example.com
+        teacher_names = ["李博文", "苏欣怡"]
+        t_email_start = 9
+        for j in range(1, 3):
+            username = f"teacher{j}"
+            email = f"{t_email_start + j - 1}@example.com"
+            if auth_service.get_user_by_username(username) or auth_service.get_user_by_email(email):
+                continue
+            user_data = UserCreate(
+                username=username,
+                password="123456",
+                role=UserRole.TEACHER,
+                name=teacher_names[j-1],
+                email=email
+            )
+            try:
+                auth_service.create_user(user_data)
+                print(f"已创建教师账户: {username}/123456")
+            except Exception as e:
+                print(f"创建教师 {username} 失败: {e}")
+
     except Exception as e:
-        print(f"创建默认管理员账户失败: {e}")
+        print(f"创建默认账户失败: {e}")
     finally:
         db.close()
