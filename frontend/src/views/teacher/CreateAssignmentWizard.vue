@@ -116,7 +116,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import MonacoEditor from '@/views/student/MonacoEditor.vue'
+import MonacoEditor from '@/views/components/MonacoEditor.vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { renderMarkdown } from '@/utils/markdown'
 import { problemsAPI } from '@/utils/api'

@@ -161,7 +161,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import MonacoEditor from './MonacoEditor.vue'
+import MonacoEditor from '../components/MonacoEditor.vue'
 import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
 import { renderMarkdown } from '../../utils/markdown.js'
 

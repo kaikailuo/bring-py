@@ -102,7 +102,7 @@
                 </span>
                 <el-tag v-if="post.author?.role === 'teacher'" size="small" type="info" style="margin-left:8px">教师</el-tag>
                 <span class="post-time">{{ post.time }}</span>
-                <el-button size="small" type="primary" @click.stop="aiSummarize(post.id)" style="margin-left:8px">一键AI总结</el-button>
+                <el-button size="small" type="primary" @click.stop="aiSummarize(post)" style="margin-left:8px">一键AI总结</el-button>
                 <!-- 教师管理按钮：仅教师或管理员可见 -->
                 <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin'">
                   <el-button size="small" type="danger" @click.stop="deletePost(post)" style="margin-left:8px">删除帖子</el-button>
@@ -293,6 +293,8 @@
         </div>
       </div>
     </el-dialog>
+    <!-- 共用 AI 聊天/总结组件 -->
+    <AiChatBox v-model="aiChatVisible" :mode="aiChatMode" :post="aiChatPost" />
   </div>
 </template>
 
@@ -303,7 +305,7 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import api from '@/utils/api'
-import { aiAPI } from '../../utils/api.js'
+import AiChatBox from '@/views/components/AiChatBox.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -716,28 +718,18 @@ const toggleFavorite = async (post) => {
 }
 
 // AI 总结触发函数（前端仅发起请求，后端返回占位）
-const aiSummarize = async (postId) => {
-  try {
-    const res = await aiAPI.summarize(postId)
-    // 后端当前为占位实现，返回 { post_id, status, summary }
-    if (res && res.status) {
-      if (res.status === 'accepted') {
-        ElMessage.success('AI 总结请求已发送')
-      } else if (res.status === 'completed' || res.summary) {
-        ElMessage.success('AI 总结完成')
-        // 如有摘要，可在控制台输出或进一步展示
-        if (res.summary) console.log('AI summary:', res.summary)
-      } else {
-        ElMessage.success('已发送 AI 总结请求')
-      }
-    } else {
-      ElMessage.success('已发送 AI 总结请求')
-    }
-  } catch (err) {
-    console.error('AI summarize error', err)
-    ElMessage.error(err?.message || 'AI 总结请求失败')
-  }
+// 打开 AI 总结弹窗（由 AiChatBox 处理实际的 api 调用）
+const aiSummarize = (post) => {
+  // 打开 AiChatBox 以 summarize 模式并传入当前帖子
+  aiChatVisible.value = true
+  aiChatMode.value = 'summarize'
+  aiChatPost.value = post
 }
+
+// AI 聊天框状态（用于复用组件）
+const aiChatVisible = ref(false)
+const aiChatMode = ref('assistant')
+const aiChatPost = ref(null)
 
 // 教师/管理员：删除帖子
 const deletePost = async (post) => {

@@ -24,7 +24,7 @@ async def summarize_post(req: AISummarizeRequest):
     """
     # TODO: 将请求推入异步任务队列或调用 AI 服务进行实际生成
     placeholder_summary = None
-
+    print(req.post_id)  # 调试输出
     return {
         'post_id': req.post_id,
         'status': 'accepted',
