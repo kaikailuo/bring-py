@@ -178,6 +178,10 @@
                     {{ task.status === 'completed' ? '已完成' : '待处理' }}
                   </el-tag>
                 </div>
+                <!-- ❌ 删除按钮 -->
+                <div class="task-delete" @click="deleteTask(task.id)">
+                  <el-icon><Close /></el-icon>
+                </div>
               </div>
             </div>
           </div>
@@ -293,6 +297,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
+
+const deleteTask = (id) => {
+  todayTasks.value = todayTasks.value.filter(task => task.id !== id)
+  ElMessage.success("已删除任务")
+}
+
 
 // 控制弹窗显示
 const addTaskDialogVisible = ref(false)
