@@ -83,15 +83,18 @@ async function onOpen() {
     title.value = post.value?.title
       ? `AI 总结 - ${post.value.title}`
       : 'AI 总结'
-
     if (post.value && post.value.id) {
+      // 先立即显示已接受提示，然后再调用 summarize
+      messages.value.push({ role: 'ai', text: '已接受任务，正在处理中...' })
       loading.value = true
       try {
         const res = await aiAPI.summarize(post.value.id)
         if (res?.summary) {
+          // 将最终摘要作为新的消息（与接受提示分开）
           messages.value.push({ role: 'ai', text: res.summary })
         } else if (res?.status === 'accepted') {
-          messages.value.push({ role: 'ai', text: '已接受任务，正在处理中...' })
+          // 后端仍然返回 accepted：提示已入队
+          messages.value.push({ role: 'ai', text: '任务已入队，稍后可在消息中查看结果。' })
         } else {
           messages.value.push({ role: 'ai', text: '已发送请求，未返回摘要。' })
         }
@@ -122,15 +125,25 @@ async function onSend() {
 
   try {
     if (mode.value === 'assistant') {
-      await new Promise(r => setTimeout(r, 600))
-      messages.value.push({
-        role: 'ai',
-        text: '（占位回复）AI：我已收到你的问题，正在开发中。'
-      })
+      // 普通对话走 chat 接口
+      try {
+        const res = await aiAPI.chat(text)
+        if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
+        else messages.value.push({ role: 'ai', text: '（占位）未获取到回复' })
+      } catch (err) {
+        console.error(err)
+        messages.value.push({ role: 'ai', text: 'AI 请求失败' })
+      }
     } else if (mode.value === 'summarize') {
-      const res = await aiAPI.summarize(post.value?.id)
-      if (res?.summary) messages.value.push({ role: 'ai', text: res.summary })
-      else messages.value.push({ role: 'ai', text: '未获取到摘要结果' })
+      // summarize 模式下的后续对话也走 chat 接口，但携带 post_id 以便后端可以结合上下文处理
+      try {
+        const res = await aiAPI.chat(text, post.value?.id)
+        if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
+        else messages.value.push({ role: 'ai', text: '未获取到回复' })
+      } catch (err) {
+        console.error(err)
+        messages.value.push({ role: 'ai', text: 'AI 请求失败' })
+      }
     }
   } catch (err) {
     console.error(err)
