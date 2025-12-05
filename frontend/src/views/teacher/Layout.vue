@@ -154,8 +154,15 @@
           <!-- 今日待办 -->
           <div class="today-tasks education-card">
             <h3 class="card-title">
-              <el-icon><Calendar /></el-icon>
-              今日待办
+              <div class="title-left">
+                <el-icon><Calendar /></el-icon>
+                今日待办
+              </div>
+
+              <!-- 添加任务按钮 -->
+              <el-icon class="add-task-btn" @click="openAddTaskDialog">
+                <Plus />
+              </el-icon>
             </h3>
             <div class="task-list">
               <div class="task-item" v-for="task in todayTasks" :key="task.id">
@@ -250,6 +257,35 @@
       </aside>
     </div>
   </div>
+  <!-- 添加待办事项弹窗 -->
+<el-dialog
+  v-model="addTaskDialogVisible"
+  title="添加今日待办"
+  width="400px">
+  <el-form :model="newTaskForm" label-width="100px">
+    <el-form-item label="任务类型">
+      <el-select v-model="newTaskForm.type" placeholder="请选择任务类型">
+        <el-option label="批改作业" value="homework" />
+        <el-option label="备课" value="prepare" />
+        <el-option label="答疑" value="qa" />
+        <el-option label="资源整理" value="resource" />
+      </el-select>
+    </el-form-item>
+
+    <el-form-item label="任务时间">
+      <el-time-picker
+        v-model="newTaskForm.time"
+        placeholder="请选择时间"
+        format="HH:mm"
+      />
+    </el-form-item>
+  </el-form>
+
+  <template #footer>
+    <el-button @click="addTaskDialogVisible = false">取消</el-button>
+    <el-button type="primary" @click="submitNewTask">确定</el-button>
+  </template>
+</el-dialog>
 </template>
 
 <script setup>
@@ -257,6 +293,51 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+// 控制弹窗显示
+const addTaskDialogVisible = ref(false)
+
+// 新任务表单
+const newTaskForm = ref({
+  type: '',
+  time: ''
+})
+
+// 类型映射（不同类型对应不同图标和标题）
+const taskTypeConfig = {
+  homework: { title: '批改作业', icon: 'EditPen', priority: 'high' },
+  prepare: { title: '备课任务', icon: 'Document', priority: 'medium' },
+  qa: { title: '学生答疑', icon: 'ChatDotRound', priority: 'high' },
+  resource: { title: '资源整理', icon: 'FolderOpened', priority: 'low' }
+}
+
+// 打开弹窗
+const openAddTaskDialog = () => {
+  newTaskForm.value = { type: '', time: '' }
+  addTaskDialogVisible.value = true
+}
+
+// 提交待办任务
+const submitNewTask = () => {
+  if (!newTaskForm.value.type || !newTaskForm.value.time) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+
+  const cfg = taskTypeConfig[newTaskForm.value.type]
+
+  todayTasks.value.push({
+    id: Date.now(),
+    title: cfg.title,
+    time: newTaskForm.value.time,
+    priority: cfg.priority,
+    icon: cfg.icon,
+    status: 'pending'
+  })
+
+  ElMessage.success('添加成功！')
+  addTaskDialogVisible.value = false
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -648,6 +729,20 @@ onMounted(() => {
 }
 
 /* 今日待办 */
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-task-btn {
+  cursor: pointer;
+  font-size: 20px;
+  color: #409EFF;
+}
+.add-task-btn:hover {
+  color: #66b1ff;
+}
 .task-list {
   display: flex;
   flex-direction: column;
@@ -871,3 +966,4 @@ onMounted(() => {
   }
 }
 </style>
+
