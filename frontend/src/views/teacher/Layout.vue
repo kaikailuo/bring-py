@@ -166,7 +166,7 @@
             </h3>
             <div class="task-list">
               <div class="task-item" v-for="task in todayTasks" :key="task.id">
-                <div class="task-icon" :class="task.priority">
+                <div class="task-icon" :class="task.priority"@click="goToTaskPage(task)"style="cursor:pointer">
                   <el-icon><component :is="task.icon" /></el-icon>
                 </div>
                 <div class="task-content">
@@ -299,6 +299,17 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Close } from '@element-plus/icons-vue'
 
+const goToTaskPage = (task) => {
+  const cfg = taskTypeConfig[ taskTypesReverseMap[task.title] ]
+  if (cfg?.path) router.push(cfg.path)
+}
+const taskTypesReverseMap = {
+  '批改作业': 'homework',
+  '备课任务': 'prepare',
+  '学生答疑': 'qa',
+  '资源整理': 'resource'
+}
+
 const deleteTask = (id) => {
   todayTasks.value = todayTasks.value.filter(task => task.id !== id)
   ElMessage.success("已删除任务")
@@ -316,10 +327,30 @@ const newTaskForm = ref({
 
 // 类型映射（不同类型对应不同图标和标题）
 const taskTypeConfig = {
-  homework: { title: '批改作业', icon: 'EditPen', priority: 'high' },
-  prepare: { title: '备课任务', icon: 'Document', priority: 'medium' },
-  qa: { title: '学生答疑', icon: 'ChatDotRound', priority: 'high' },
-  resource: { title: '资源整理', icon: 'FolderOpened', priority: 'low' }
+  homework: { 
+    title: '批改作业', 
+    icon: 'EditPen', 
+    priority: 'high',
+    path: '/teacher/assignment-management'
+  },
+  prepare: { 
+    title: '备课任务', 
+    icon: 'Document', 
+    priority: 'medium',
+    path: '/teacher/class-management'
+  },
+  qa: { 
+    title: '学生答疑', 
+    icon: 'ChatDotRound', 
+    priority: 'high',
+    path: '/teacher/question-monitor'
+  },
+  resource: { 
+    title: '资源整理', 
+    icon: 'FolderOpened', 
+    priority: 'low',
+    path: '/teacher/resource-management'
+  }
 }
 
 // 打开弹窗
