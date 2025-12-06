@@ -110,11 +110,12 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { User } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const posts = ref([])
@@ -138,6 +139,7 @@ const loadPosts = async () => {
 	}
 }
 
+// 教师/管理员：删除帖子
 const deletePost = async (post) => {
 	if (!post || !post.id) return
 	const token = localStorage.getItem('token')
@@ -157,6 +159,21 @@ const deletePost = async (post) => {
 		ElMessage.error(err?.response?.data?.message || '删除帖子失败')
 	}
 }
+
+// on mount, load posts and check query param to open a specific post's comments
+onMounted(async () => {
+	await loadPosts()
+	const postId = route.query.post_id
+	if (postId && posts.value.length > 0) {
+		const target = posts.value.find(p => String(p.id) === String(postId))
+		if (target) {
+			setTimeout(() => {
+				viewComments(target)
+				router.replace({ name: 'QuestionMonitor', query: {} })
+			}, 100)
+		}
+	}
+})
 
 const toggleMuteUser = async (author) => {
 	if (!author || !author.id) return
@@ -236,12 +253,15 @@ const submitComment = async () => {
     try {
         submittingComment.value = true
 
+        const requestBody = {
+            content: newComment.value.trim()
+        }
+        // Only include parent_id if it's not null
+        // For top-level comments, we omit parent_id entirely
+
         await axios.post(
             `http://127.0.0.1:8000/api/posts/${currentPost.value.id}/comments/`,
-            {
-                content: newComment.value,
-                parent_id: null
-            },
+            requestBody,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -296,10 +316,6 @@ const goToUserProfile = (author) => {
 	if (!author || !author.id) return
 	router.push({ name: 'TeacherUserProfile', params: { userId: author.id } })
 }
-
-onMounted(() => {
-	loadPosts()
-})
 </script>
 
 <style scoped>

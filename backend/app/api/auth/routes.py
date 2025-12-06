@@ -1,6 +1,7 @@
 """ 认证相关的API路由 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.utils.database import get_db
 from app.services.auth import AuthService
 from app.schemas.user import (
@@ -15,6 +16,9 @@ from app.schemas.user import (
 from app.utils.security import get_current_active_user
 from app.models.user import User
 from app.models.user import UserRole
+from app.models.post import Post
+from app.models.comment import Comment
+from app.models.student_result import StudentResult
 
 # 创建路由器
 router = APIRouter(prefix="/auth", tags=["认证"])
@@ -70,13 +74,41 @@ async def logout(
 
 @router.get("/me", response_model=ApiResponse, summary="获取当前用户信息")
 async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """ 获取当前用户信息接口 """
-    return ApiResponse.success(
-        data={"user": UserResponse.model_validate(current_user).model_dump()},
-        message="获取用户信息成功"
-    )
+    try:
+        user_data = UserResponse.model_validate(current_user).model_dump()
+
+        # 统计帖子、评论和答题通过率
+        posts_count = db.query(func.count(Post.id)).filter(Post.author_id == current_user.id).scalar() or 0
+        comments_count = db.query(func.count(Comment.id)).filter(Comment.author_id == current_user.id).scalar() or 0
+        total_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == current_user.id).scalar() or 0
+        passed_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == current_user.id, StudentResult.passed == True).scalar() or 0
+        pass_rate = 0
+        if total_submissions > 0:
+            pass_rate = round((passed_submissions / total_submissions) * 100, 2)
+
+        # 拉取最新帖子与评论（最近5条）用于个人主页详情展示
+        recent_posts = db.query(Post).filter(Post.author_id == current_user.id).order_by(Post.created_at.desc()).limit(5).all()
+        recent_comments = db.query(Comment).filter(Comment.author_id == current_user.id, Comment.is_deleted == False).order_by(Comment.created_at.desc()).limit(5).all()
+
+        user_data.update({
+            "stats": {
+                "posts_count": int(posts_count),
+                "comments_count": int(comments_count),
+                "total_submissions": int(total_submissions),
+                "passed_submissions": int(passed_submissions),
+                "pass_rate": pass_rate
+            },
+            "recent_posts": [p.to_dict() for p in recent_posts],
+            "recent_comments": [c.to_dict() for c in recent_comments]
+        })
+
+        return ApiResponse.success(data={"user": user_data}, message="获取用户信息成功")
+    except Exception as e:
+        return ApiResponse.error(code=500, message=f"获取用户信息失败: {str(e)}")
 
 
 @router.put("/me", response_model=ApiResponse, summary="更新当前用户信息")
@@ -142,6 +174,24 @@ async def get_users(
         )
     except Exception as e:
         return ApiResponse.error(code=500, message=f"获取用户列表失败: {str(e)}")
+
+
+@router.get("/students", response_model=ApiResponse, summary="获取学生列表（教师/管理员）")
+async def get_students(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """ 获取学生列表：仅教师或管理员可访问 """
+    if current_user.role not in (UserRole.TEACHER, UserRole.ADMIN):
+        return ApiResponse.error(code=403, message="权限不足")
+    try:
+        users = db.query(User).filter(User.role == UserRole.STUDENT).offset(skip).limit(limit).all()
+        user_list = [UserResponse.model_validate(u).model_dump() for u in users]
+        return ApiResponse.success(data={"students": user_list, "total": len(user_list)}, message="获取学生列表成功")
+    except Exception as e:
+        return ApiResponse.error(code=500, message=f"获取学生列表失败: {str(e)}")
 
 
 @router.put("/users/{user_id}/activate", response_model=ApiResponse, summary="激活用户（管理员）")
@@ -216,13 +266,38 @@ async def mute_user(
 # =========================
 @router.get("/me/profile", response_model=ApiResponse, summary="获取当前用户个人资料")
 async def get_my_profile(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """ 获取当前用户个人资料接口 """
-    return ApiResponse.success(
-        data={"user": UserResponse.model_validate(current_user).model_dump()},
-        message="获取个人资料成功"
-    )
+    try:
+        user_data = UserResponse.model_validate(current_user).model_dump()
+        posts_count = db.query(func.count(Post.id)).filter(Post.author_id == current_user.id).scalar() or 0
+        comments_count = db.query(func.count(Comment.id)).filter(Comment.author_id == current_user.id).scalar() or 0
+        total_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == current_user.id).scalar() or 0
+        passed_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == current_user.id, StudentResult.passed == True).scalar() or 0
+        pass_rate = 0
+        if total_submissions > 0:
+            pass_rate = round((passed_submissions / total_submissions) * 100, 2)
+
+        recent_posts = db.query(Post).filter(Post.author_id == current_user.id).order_by(Post.created_at.desc()).limit(5).all()
+        recent_comments = db.query(Comment).filter(Comment.author_id == current_user.id, Comment.is_deleted == False).order_by(Comment.created_at.desc()).limit(5).all()
+
+        user_data.update({
+            "stats": {
+                "posts_count": int(posts_count),
+                "comments_count": int(comments_count),
+                "total_submissions": int(total_submissions),
+                "passed_submissions": int(passed_submissions),
+                "pass_rate": pass_rate
+            },
+            "recent_posts": [p.to_dict() for p in recent_posts],
+            "recent_comments": [c.to_dict() for c in recent_comments]
+        })
+
+        return ApiResponse.success(data={"user": user_data}, message="获取个人资料成功")
+    except Exception as e:
+        return ApiResponse.error(code=500, message=f"获取个人资料失败: {str(e)}")
 
 
 @router.put("/me/profile", response_model=ApiResponse, summary="更新当前用户个人资料")
@@ -256,10 +331,31 @@ async def get_user_profile(
         user = auth_service.get_user_by_id(user_id)
         if not user:
             return ApiResponse.error(code=404, message="用户不存在")
-        return ApiResponse.success(
-            data={"user": UserResponse.model_validate(user).model_dump()},
-            message="获取个人资料成功"
-        )
+        user_data = UserResponse.model_validate(user).model_dump()
+        posts_count = db.query(func.count(Post.id)).filter(Post.author_id == user.id).scalar() or 0
+        comments_count = db.query(func.count(Comment.id)).filter(Comment.author_id == user.id).scalar() or 0
+        total_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == user.id).scalar() or 0
+        passed_submissions = db.query(func.count(StudentResult.id)).filter(StudentResult.student_id == user.id, StudentResult.passed == True).scalar() or 0
+        pass_rate = 0
+        if total_submissions > 0:
+            pass_rate = round((passed_submissions / total_submissions) * 100, 2)
+
+        recent_posts = db.query(Post).filter(Post.author_id == user.id).order_by(Post.created_at.desc()).limit(5).all()
+        recent_comments = db.query(Comment).filter(Comment.author_id == user.id, Comment.is_deleted == False).order_by(Comment.created_at.desc()).limit(5).all()
+
+        user_data.update({
+            "stats": {
+                "posts_count": int(posts_count),
+                "comments_count": int(comments_count),
+                "total_submissions": int(total_submissions),
+                "passed_submissions": int(passed_submissions),
+                "pass_rate": pass_rate
+            },
+            "recent_posts": [p.to_dict() for p in recent_posts],
+            "recent_comments": [c.to_dict() for c in recent_comments]
+        })
+
+        return ApiResponse.success(data={"user": user_data}, message="获取个人资料成功")
     except Exception as e:
         return ApiResponse.error(code=500, message=f"获取个人资料失败: {str(e)}")
 

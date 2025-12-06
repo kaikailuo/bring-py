@@ -3,9 +3,14 @@
 """
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
-from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.utils.database import get_db
+from app.utils.security import get_current_active_user
+from app.models.user import User
+from app.models.student_result import StudentResult
+from sqlalchemy.sql import func
 from pydantic import BaseModel
 
 # 引入服务层
@@ -94,8 +99,45 @@ async def run_code(lesson: str, problem: str, request: CodeExecutionRequest):
     return await svc_mock_run_code(lesson,problem,request.code)
 
 @router.post("/{lesson}/{problem}/submit", summary="提交代码")
-async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest):
+async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest,
+                      current_user: User = Depends(get_current_active_user),
+                      db: Session = Depends(get_db)):
     """
-    模拟提交代码并返回测评结果
+    模拟提交代码并返回测评结果，并记录学生提交结果到数据库
     """
-    return await svc_mock_submit_code(lesson, problem, request.code)
+    res = await svc_mock_submit_code(lesson, problem, request.code)
+
+    try:
+        # 兼容返回格式：res 包含 total 和 passed（数量）
+        total = int(res.get('total', 0))
+        passed_count = int(res.get('passed', 0))
+        overall_passed = False
+        if total > 0:
+            overall_passed = (passed_count >= total)
+
+        # 更新或创建 StudentResult
+        if current_user and current_user.id:
+            existing = db.query(StudentResult).filter(
+                StudentResult.student_id == current_user.id,
+                StudentResult.lesson == lesson,
+                StudentResult.problem == problem
+            ).first()
+            if existing:
+                existing.attempts = (existing.attempts or 0) + 1
+                # 如果已有通过记录，则保持 True，否则根据本次结果更新
+                existing.passed = bool(existing.passed) or bool(overall_passed)
+                existing.last_submitted_at = func.now()
+            else:
+                new = StudentResult(
+                    student_id=current_user.id,
+                    lesson=lesson,
+                    problem=problem,
+                    attempts=1,
+                    passed=bool(overall_passed)
+                )
+                db.add(new)
+            db.commit()
+    except Exception:
+        db.rollback()
+
+    return res

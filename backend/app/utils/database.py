@@ -46,6 +46,7 @@ def init_db():
     from app.models.post import Post
     from app.models.comment import Comment
     from app.models.favorite import Favorite
+    from app.models.student_result import StudentResult
     
     # 创建所有表
     Base.metadata.create_all(bind=engine)
