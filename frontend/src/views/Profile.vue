@@ -450,6 +450,11 @@ const loadProfile = async () => {
       userInfo.value.recent_posts = user.recent_posts || []
       userInfo.value.recent_comments = user.recent_comments || []
       
+      // 更新统计数据
+      if (user.stats) {
+        stats.value = user.stats
+      }
+      
       // 更新个人资料表单
       profileForm.avatar = user.avatar || ''
       profileForm.nickname = user.nickname || ''

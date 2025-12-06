@@ -138,8 +138,9 @@ const loadPosts = async () => {
 		posts.value = []
 	}
 }
+	// end loadPosts
 
-// 教师/管理员：删除帖子
+	// 教师/管理员：删除帖子
 const deletePost = async (post) => {
 	if (!post || !post.id) return
 	const token = localStorage.getItem('token')
@@ -209,9 +210,22 @@ const viewComments = async (post) => {
 	showCommentDialog.value = true
 	newComment.value = ''
 	
-	// 加载评论列表
+	// 加载评论列表并更新浏览次数
 	try {
 		const token = localStorage.getItem('token')
+		
+		// 先获取帖子详情（这会增加浏览次数）
+		const postRes = await axios.get(
+			`http://127.0.0.1:8000/api/posts/${post.id}`,
+			{
+				headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+			}
+		)
+		if (postRes.data && postRes.data.data) {
+			currentPost.value = postRes.data.data
+		}
+		
+		// 再加载评论列表
 		const res = await axios.get(
 			`http://127.0.0.1:8000/api/posts/${post.id}/comments/`,
 			{
@@ -253,15 +267,12 @@ const submitComment = async () => {
     try {
         submittingComment.value = true
 
-        const requestBody = {
-            content: newComment.value.trim()
-        }
-        // Only include parent_id if it's not null
-        // For top-level comments, we omit parent_id entirely
-
         await axios.post(
             `http://127.0.0.1:8000/api/posts/${currentPost.value.id}/comments/`,
-            requestBody,
+            {
+                content: newComment.value,
+                parent_id: null
+            },
             {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -316,6 +327,10 @@ const goToUserProfile = (author) => {
 	if (!author || !author.id) return
 	router.push({ name: 'TeacherUserProfile', params: { userId: author.id } })
 }
+
+onMounted(() => {
+	loadPosts()
+})
 </script>
 
 <style scoped>

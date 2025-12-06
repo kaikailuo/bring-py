@@ -10,6 +10,7 @@ from app.models.student_result import StudentResult
 from app.models.user import User, UserRole
 from app.schemas.user import ApiResponse
 from app.utils.security import get_current_user
+from app.services.problems_service import load_index
 
 router = APIRouter()
 
@@ -123,6 +124,44 @@ async def get_student_answer_detail(
             StudentResult.student_id == student_id
         ).order_by(StudentResult.last_submitted_at.desc()).all()
         
+        # 加载题目索引
+        problems_index = load_index() or []
+        problems_dict = {}
+        for prob in problems_index:
+            if isinstance(prob, dict):
+                lesson = prob.get("lesson")
+                problem = prob.get("problem")
+                if lesson and problem:
+                    key = (str(lesson), str(problem))
+                    problems_dict[key] = {
+                        "title": prob.get("title", ""),
+                        "path": prob.get("path", ""),
+                        "has_test": prob.get("has_test", True)
+                    }
+        
+        # 增强答题记录，添加题目信息
+        enhanced_results = []
+        for result in results:
+            result_dict = result.to_dict()
+            # 尝试匹配题目信息
+            lesson_key = str(result.lesson) if result.lesson else None
+            problem_key = str(result.problem) if result.problem else None
+            if lesson_key and problem_key:
+                prob_info = problems_dict.get((lesson_key, problem_key))
+                if prob_info:
+                    result_dict["problem_title"] = prob_info["title"]
+                    result_dict["problem_path"] = prob_info["path"]
+                    result_dict["has_test"] = prob_info["has_test"]
+                else:
+                    result_dict["problem_title"] = f"第{lesson_key}课-第{problem_key}题"
+                    result_dict["problem_path"] = None
+                    result_dict["has_test"] = True
+            else:
+                result_dict["problem_title"] = "未知题目"
+                result_dict["problem_path"] = None
+                result_dict["has_test"] = True
+            enhanced_results.append(result_dict)
+        
         # 按课程分组统计
         lesson_stats = {}
         for result in results:
@@ -147,7 +186,7 @@ async def get_student_answer_detail(
                     "name": student.name,
                     "username": student.username
                 },
-                "results": [r.to_dict() for r in results],
+                "results": enhanced_results,
                 "lesson_stats": list(lesson_stats.values())
             },
             message="获取学生详细答题情况成功"

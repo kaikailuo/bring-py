@@ -123,7 +123,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column label="操作" width="200" fixed="right">
               <template #default="{ row }">
                 <el-button
                   type="primary"
@@ -133,12 +133,130 @@
                 >
                   查看详情
                 </el-button>
+                <el-button
+                  type="success"
+                  link
+                  size="small"
+                  @click="analyzeStudent(row)"
+                  :loading="analyzingStudentId === row.student_id"
+                >
+                  AI分析
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </div>
       </div>
     </div>
+
+    <!-- 学生答题详情对话框 -->
+    <el-dialog
+      v-model="showDetailDialog"
+      :title="`${currentStudent?.student_name || ''} - 答题详情`"
+      width="80%"
+      @close="closeDetailDialog"
+    >
+      <div v-if="studentDetail" class="student-detail">
+        <!-- 学生信息 -->
+        <div class="detail-header">
+          <div class="student-info">
+            <h3>{{ studentDetail.student?.name }}</h3>
+            <p>用户名: {{ studentDetail.student?.username }}</p>
+          </div>
+          <div class="detail-stats">
+            <el-statistic title="总答题数" :value="studentDetail.results?.length || 0" />
+            <el-statistic title="通过题目" :value="studentDetail.results?.filter(r => r.passed).length || 0" />
+          </div>
+        </div>
+
+        <el-divider />
+
+        <!-- 按课程分组显示 -->
+        <div v-if="studentDetail.lesson_stats && studentDetail.lesson_stats.length > 0" class="lesson-stats">
+          <h4>课程统计</h4>
+          <el-table :data="studentDetail.lesson_stats" style="width: 100%; margin-bottom: 20px">
+            <el-table-column prop="lesson" label="课程" />
+            <el-table-column prop="total_problems" label="题目数" />
+            <el-table-column prop="passed_problems" label="通过数" />
+            <el-table-column prop="total_attempts" label="总尝试次数" />
+            <el-table-column label="通过率">
+              <template #default="{ row }">
+                <el-progress
+                  :percentage="Math.round((row.passed_problems / row.total_problems * 100) || 0)"
+                  :color="getPassRateColor((row.passed_problems / row.total_problems * 100) || 0)"
+                />
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 详细答题记录 -->
+        <div class="detail-results">
+          <h4>详细答题记录</h4>
+          <el-table
+            :data="studentDetail.results"
+            style="width: 100%"
+            stripe
+            max-height="400"
+          >
+            <el-table-column prop="problem_title" label="题目" width="250" />
+            <el-table-column prop="lesson" label="课程" width="120" />
+            <el-table-column prop="problem" label="题号" width="100" />
+            <el-table-column prop="attempts" label="尝试次数" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.attempts > 3 ? 'warning' : 'success'">
+                  {{ row.attempts }} 次
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="passed" label="是否通过" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.passed ? 'success' : 'danger'">
+                  {{ row.passed ? '通过' : '未通过' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="last_submitted_at" label="最后提交时间" width="180">
+              <template #default="{ row }">
+                {{ row.last_submitted_at ? new Date(row.last_submitted_at).toLocaleString('zh-CN') : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="viewProblemDetail(row)"
+                  v-if="row.problem_path"
+                >
+                  查看题目
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+      <div v-else class="loading-placeholder">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <p>加载中...</p>
+      </div>
+    </el-dialog>
+
+    <!-- AI分析结果对话框 -->
+    <el-dialog
+      v-model="showAnalysisDialog"
+      :title="`${currentStudent?.student_name || ''} - AI分析结果`"
+      width="70%"
+    >
+      <div v-if="analysisResult" class="analysis-content">
+        <div v-html="formatAnalysis(analysisResult.analysis)"></div>
+      </div>
+      <div v-else class="loading-placeholder">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <p>分析中...</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -153,9 +271,11 @@ import {
   EditPen,
   Document,
   CircleCheck,
-  Search
+  Search,
+  Loading
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { marked } from 'marked'
 
 const loading = ref(false)
 const chartContainer = ref(null)
@@ -166,6 +286,12 @@ const stats = ref({
   students: [],
   total_students: 0
 })
+const showDetailDialog = ref(false)
+const showAnalysisDialog = ref(false)
+const currentStudent = ref(null)
+const studentDetail = ref(null)
+const analysisResult = ref(null)
+const analyzingStudentId = ref(null)
 
 // 计算属性
 const totalAttempts = computed(() => {
@@ -373,9 +499,102 @@ const getPassRateColor = (rate) => {
 }
 
 // 查看学生详情
-const viewStudentDetail = (student) => {
-  ElMessage.info(`查看 ${student.student_name} 的详细答题情况`)
-  // TODO: 可以打开一个对话框显示详细信息
+const viewStudentDetail = async (student) => {
+  currentStudent.value = student
+  showDetailDialog.value = true
+  studentDetail.value = null
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    const res = await axios.get(
+      `http://127.0.0.1:8000/api/analytics/student-answer-detail/${student.student_id}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+
+    if (res.data && res.data.code === 200 && res.data.data) {
+      studentDetail.value = res.data.data
+    } else {
+      ElMessage.error(res.data?.message || '加载详情失败')
+    }
+  } catch (error) {
+    console.error('加载学生详情失败:', error)
+    ElMessage.error(error?.response?.data?.detail || '加载详情失败')
+  }
+}
+
+// 关闭详情对话框
+const closeDetailDialog = () => {
+  showDetailDialog.value = false
+  currentStudent.value = null
+  studentDetail.value = null
+}
+
+// AI分析学生
+const analyzeStudent = async (student) => {
+  currentStudent.value = student
+  showAnalysisDialog.value = true
+  analysisResult.value = null
+  analyzingStudentId.value = student.student_id
+  
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+
+    const res = await axios.post(
+      'http://127.0.0.1:8000/api/ai/analyze-student',
+      {
+        student_id: student.student_id
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+
+    if (res.data && res.data.code === 200 && res.data.data) {
+      analysisResult.value = res.data.data
+      ElMessage.success('分析完成')
+    } else {
+      ElMessage.error(res.data?.message || '分析失败')
+    }
+  } catch (error) {
+    console.error('AI分析失败:', error)
+    ElMessage.error(error?.response?.data?.detail || '分析失败')
+  } finally {
+    analyzingStudentId.value = null
+  }
+}
+
+// 格式化分析结果（Markdown转HTML）
+const formatAnalysis = (text) => {
+  if (!text) return ''
+  try {
+    return marked.parse(text)
+  } catch (e) {
+    return text.replace(/\n/g, '<br>')
+  }
+}
+
+// 查看题目详情
+const viewProblemDetail = (result) => {
+  if (result.problem_path) {
+    // 可以打开新窗口或对话框显示题目详情
+    ElMessage.info(`查看题目: ${result.problem_title}`)
+    // TODO: 可以调用题目API获取详细内容
+  }
 }
 
 // 过滤学生
@@ -554,5 +773,100 @@ onMounted(() => {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 学生详情对话框样式 */
+.student-detail {
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .student-info {
+      h3 {
+        margin: 0 0 8px 0;
+        font-size: 20px;
+        color: #303133;
+      }
+
+      p {
+        margin: 0;
+        color: #909399;
+        font-size: 14px;
+      }
+    }
+
+    .detail-stats {
+      display: flex;
+      gap: 24px;
+    }
+  }
+
+  .lesson-stats {
+    margin-bottom: 24px;
+
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: #303133;
+    }
+  }
+
+  .detail-results {
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: #303133;
+    }
+  }
+}
+
+.analysis-content {
+  padding: 16px;
+  line-height: 1.8;
+  color: #303133;
+
+  :deep(h2) {
+    font-size: 18px;
+    margin-top: 20px;
+    margin-bottom: 12px;
+    color: #303133;
+  }
+
+  :deep(h3) {
+    font-size: 16px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #606266;
+  }
+
+  :deep(ul) {
+    margin: 8px 0;
+    padding-left: 24px;
+  }
+
+  :deep(li) {
+    margin: 4px 0;
+  }
+
+  :deep(strong) {
+    font-weight: 600;
+    color: #303133;
+  }
+}
+
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #909399;
+
+  .el-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
 }
 </style>
