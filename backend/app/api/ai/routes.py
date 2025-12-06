@@ -18,17 +18,23 @@ class AISummarizeResponse(BaseModel):
 @router.post('/summarize', response_model=AISummarizeResponse)
 async def summarize_post(req: AISummarizeRequest):
     """
-    占位：接收帖子ID并触发 AI 总结任务。
-    当前为占位实现：立即返回任务已接受的占位响应。
-    真实实现应：将任务入队列/异步调用模型，或者同步返回生成结果。
+    调用 summarize 逻辑：同步等待 summarize_post 返回字符串摘要
+    返回结构：{ post_id, status: 'ok', summary }
     """
-    # TODO: 将请求推入异步任务队列或调用 AI 服务进行实际生成
-    placeholder_summary = None
-    print(req.post_id)  # 调试输出
+    try:
+        from app.services.ai.tasks.summarize import summarize_post as summarize_impl
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'未找到 summarize 实现: {e}')
+
+    try:
+        summary = await summarize_impl(req.post_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     return {
         'post_id': req.post_id,
-        'status': 'accepted',
-        'summary': placeholder_summary
+        'status': 'ok',
+        'summary': summary
     }
 
 
