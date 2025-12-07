@@ -388,7 +388,7 @@ const handleCommand = async (command) => {
       ElMessage.info('个人资料功能开发中...')
       break
     case 'settings':
-      ElMessage.info('系统设置功能开发中...')
+      router.push('/settings')
       break
     case 'logout':
       try {

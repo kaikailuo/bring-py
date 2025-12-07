@@ -173,6 +173,14 @@ const routes = [
   }
 ]
 
+// 系统设置页
+routes.splice(routes.length - 1, 0, {
+  path: '/settings',
+  name: 'SystemSettings',
+  component: () => import('@/views/settings/SystemSettings.vue'),
+  meta: { title: '系统设置' }
+})
+
 const router = createRouter({
   history: createWebHistory(),
   routes

@@ -1,0 +1,60 @@
+/* ======== Dark Theme (全局覆盖) ======== */
+html.dark {
+  --bg-color: #121212;
+  --card-bg-color: #1e1e1e;
+  --text-color: #e5e5e5;
+  --text-subtle: #aaaaaa;
+  --border-color: #333;
+}
+
+/* 全局背景 */
+html.dark body {
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* 卡片背景与边框 */
+html.dark .el-card {
+  background-color: var(--card-bg-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Card Header */
+html.dark .el-card__header {
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+/* 输入框/选择框深色 */
+html.dark .el-input__wrapper,
+html.dark .el-select__wrapper {
+  background-color: #2a2a2a !important;
+  border-color: #444 !important;
+  color: var(--text-color) !important;
+}
+
+/* 表单文字 */
+html.dark .el-form-item__label {
+  color: var(--text-color) !important;
+}
+
+/* 下拉菜单 */
+html.dark .el-select-dropdown,
+html.dark .el-dropdown-menu {
+  background-color: #1f1f1f !important;
+  border-color: #333 !important;
+}
+
+html.dark .el-select-dropdown__item {
+  color: var(--text-color) !important;
+}
+
+html.dark .el-select-dropdown__item.hover,
+html.dark .el-select-dropdown__item:hover {
+  background-color: #333 !important;
+}
+
+/* Switch 文本 */
+html.dark .el-switch__label span {
+  color: var(--text-color) !important;
+}
