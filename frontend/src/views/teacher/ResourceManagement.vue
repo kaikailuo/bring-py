@@ -155,8 +155,8 @@ width="500px"
               <el-select v-model="resourceMeta.courseId" placeholder="选择课程（可选）" clearable>
                 <el-option label="不关联课程" value="" />
                 <el-option label="全部" value="all" />
-                <el-option label="第一课" value="lesson1" />
-                <el-option label="高等数学（上）" value="101" />
+                <el-option label="第一课" value="lesson_01" />
+                <el-option label="第二课" value="101" />
                 <el-option label="线性代数" value="102" />
                 <el-option label="大学物理实验" value="103" />
               </el-select>
