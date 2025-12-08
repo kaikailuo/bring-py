@@ -35,7 +35,7 @@ async def summarize_post(post_id: int) -> str:
         comments = []
         for c in comments_q:
             comments.append({'author': getattr(c, 'author_name', None) or c.author_id, 'content': c.content})
-
+        print("obj:",post_obj,"\ncomments:",comments)
     finally:
         db.close()
 

@@ -5,7 +5,7 @@
 - async def handle_chat(message: str, post_id: int|None) -> str
 - def set_summary_for_post(post_id, summary)
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 from app.services.ai.client import call_llm
 from app.services.ai.prompts import build_chat_prompt
 
@@ -14,7 +14,7 @@ chat_sessions: Dict[str, List[Dict]] = {}
 MAX_HISTORY = 10
 
 
-def _session_key_for(post_id: int | None) -> str:
+def _session_key_for(post_id: Optional[int] = None) -> str:
     return f'post:{post_id}' if post_id is not None else 'default'
 
 
@@ -28,7 +28,7 @@ def set_summary_for_post(post_id: int, summary: str):
     chat_sessions[key] = h[-MAX_HISTORY:]
 
 
-async def handle_chat(message: str, post_id: int | None):
+async def handle_chat(message: str, post_id: Optional[int] = None):
     """处理用户消息：按 session 搜集历史，调用 LLM，并返回 AI 回复文本。"""
     key = _session_key_for(post_id)
     history = chat_sessions.get(key, [])
