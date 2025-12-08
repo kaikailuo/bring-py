@@ -11,6 +11,7 @@ from app.api.favorite import router as favorite_router
 from app.api.problems.routes import router as problems_router
 from app.api.resources import router as resources_router  # 添加这一行
 from app.api.ai.routes import router as ai_router
+from app.api.analytics import router as analytics_router
 from app.utils.database import init_db
 import uvicorn
 
@@ -51,6 +52,8 @@ app.include_router(resources_router)  # 添加这一行，resources_router自身
 app.include_router(problems_router, prefix="/api")
 # 注册 AI 相关占位路由
 app.include_router(ai_router, prefix="/api")
+# 注册学情分析相关路由
+app.include_router(analytics_router, prefix="/api")
 
 @app.get("/")
 async def read_root():

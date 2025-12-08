@@ -231,6 +231,77 @@
           </div>
         </div>
       </el-card>
+      
+      <!-- 统计信息卡片 -->
+      <el-card class="profile-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-title">
+              <el-icon><DataAnalysis /></el-icon>
+              统计信息
+            </span>
+          </div>
+        </template>
+
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">答题通过率</div>
+            <div class="stat-value">{{ stats.pass_rate ?? 0 }}%</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">总提交数</div>
+            <div class="stat-value">{{ stats.total_submissions ?? 0 }}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">通过数</div>
+            <div class="stat-value">{{ stats.passed_submissions ?? 0 }}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">发帖数</div>
+            <div class="stat-value">{{ stats.posts_count ?? 0 }}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">回复数</div>
+            <div class="stat-value">{{ stats.comments_count ?? 0 }}</div>
+          </div>
+        </div>
+      </el-card>
+
+        <!-- 帖子与评论详情 -->
+        <el-card class="profile-card">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">
+                <el-icon><Document /></el-icon>
+                发帖与评论详情
+              </span>
+            </div>
+          </template>
+
+          <div class="details">
+            <div class="detail-section">
+              <h4>最近发帖</h4>
+              <div v-if="(userInfo.recent_posts || []).length" class="simple-list">
+                <div v-for="post in userInfo.recent_posts" :key="post.id" class="post-item list-row">
+                  <router-link :to="`/teacher/user/${post.author.id}`">{{ post.title }}</router-link>
+                  <div class="meta">{{ formatDate(post.created_at) }} · 浏览 {{ post.views }} · 回复 {{ post.replies }}</div>
+                </div>
+              </div>
+              <div v-else class="empty">暂无发帖</div>
+            </div>
+
+            <div class="detail-section">
+              <h4>最近评论</h4>
+              <div v-if="(userInfo.recent_comments || []).length" class="simple-list">
+                <div v-for="comment in userInfo.recent_comments" :key="comment.id" class="comment-item list-row">
+                  <div class="content">{{ comment.content }}</div>
+                  <div class="meta">在帖子 <a href="#" @click.prevent="goToPost(comment.post_id)">查看帖子</a> · {{ formatDate(comment.created_at) }}</div>
+                </div>
+              </div>
+              <div v-else class="empty">暂无评论</div>
+            </div>
+          </div>
+        </el-card>
     </div>
   </div>
 </template>
@@ -241,6 +312,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { authAPI } from '@/utils/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Document } from '@element-plus/icons-vue'
+
 
 const router = useRouter()
 const route = useRoute()
@@ -283,6 +356,15 @@ const profileForm = reactive({
   gender: '',
   phone: '',
   bio: ''
+})
+
+// 统计数据
+const stats = ref({
+  posts_count: 0,
+  comments_count: 0,
+  total_submissions: 0,
+  passed_submissions: 0,
+  pass_rate: 0
 })
 
 // 原始个人资料（用于重置）
@@ -363,6 +445,15 @@ const loadProfile = async () => {
         updated_at: user.updated_at,
         is_active: user.is_active
       }
+
+      // recent posts/comments are attached to the user object
+      userInfo.value.recent_posts = user.recent_posts || []
+      userInfo.value.recent_comments = user.recent_comments || []
+      
+      // 更新统计数据
+      if (user.stats) {
+        stats.value = user.stats
+      }
       
       // 更新个人资料表单
       profileForm.avatar = user.avatar || ''
@@ -409,6 +500,14 @@ const handleSaveProfile = async () => {
       // 更新原始数据
       originalProfile.value = { ...profileForm }
       
+      // 更新统计数据（如果有）
+      stats.value = user.stats || {
+        posts_count: 0,
+        comments_count: 0,
+        total_submissions: 0,
+        passed_submissions: 0,
+        pass_rate: 0
+      }
       // 更新 store 中的用户信息
       if (response.data && response.data.user) {
         userStore.updateUser(response.data.user)
@@ -521,6 +620,16 @@ const formatDate = (dateString) => {
 onMounted(() => {
   loadProfile()
 })
+
+const goToPost = (postId) => {
+  if (!postId) return
+  const role = userStore.user?.role || ''
+  if (String(role).toLowerCase() === 'teacher') {
+    router.push({ name: 'QuestionMonitor', query: { post_id: postId } })
+  } else {
+    router.push({ name: 'StudentForum', query: { post_id: postId } })
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -622,6 +731,49 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: $spacing-md;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: $spacing-md;
+  padding: $spacing-md;
+}
+
+.stat-item {
+  background: $bg-secondary;
+  border-radius: $border-radius;
+  padding: $spacing-md;
+  text-align: center;
+}
+
+.stat-label {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+}
+
+.stat-value {
+  margin-top: $spacing-xs;
+  font-size: $font-size-lg;
+  font-weight: bold;
+  color: $text-primary;
+}
+
+.details {
+  display: flex;
+  gap: $spacing-lg;
+  padding: $spacing-md;
+}
+.detail-section {
+  flex: 1;
+}
+.post-item, .comment-item {
+  padding: $spacing-sm 0;
+  border-bottom: 1px dashed $border-color;
+}
+.empty {
+  color: $text-secondary;
+  padding: $spacing-sm 0;
 }
 
 .info-item {

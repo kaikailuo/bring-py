@@ -522,9 +522,19 @@ const showComments = async (post) => {
   newComment.value = ''
   replyingTo.value = null
   
-  // 加载评论列表
+  // 加载评论列表并更新浏览次数
   try {
     const token = localStorage.getItem('token')
+    
+    // 先获取帖子详情（这会增加浏览次数）
+    const postRes = await axios.get(`http://127.0.0.1:8000/api/posts/${post.id}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    if (postRes.data && postRes.data.data) {
+      currentPost.value = postRes.data.data
+    }
+    
+    // 再加载评论列表
     const res = await axios.get(`http://127.0.0.1:8000/api/posts/${post.id}/comments/`, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     })

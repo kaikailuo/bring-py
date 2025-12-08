@@ -110,11 +110,12 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { User } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const posts = ref([])
@@ -137,7 +138,9 @@ const loadPosts = async () => {
 		posts.value = []
 	}
 }
+	// end loadPosts
 
+	// 教师/管理员：删除帖子
 const deletePost = async (post) => {
 	if (!post || !post.id) return
 	const token = localStorage.getItem('token')
@@ -157,6 +160,21 @@ const deletePost = async (post) => {
 		ElMessage.error(err?.response?.data?.message || '删除帖子失败')
 	}
 }
+
+// on mount, load posts and check query param to open a specific post's comments
+onMounted(async () => {
+	await loadPosts()
+	const postId = route.query.post_id
+	if (postId && posts.value.length > 0) {
+		const target = posts.value.find(p => String(p.id) === String(postId))
+		if (target) {
+			setTimeout(() => {
+				viewComments(target)
+				router.replace({ name: 'QuestionMonitor', query: {} })
+			}, 100)
+		}
+	}
+})
 
 const toggleMuteUser = async (author) => {
 	if (!author || !author.id) return
@@ -192,9 +210,22 @@ const viewComments = async (post) => {
 	showCommentDialog.value = true
 	newComment.value = ''
 	
-	// 加载评论列表
+	// 加载评论列表并更新浏览次数
 	try {
 		const token = localStorage.getItem('token')
+		
+		// 先获取帖子详情（这会增加浏览次数）
+		const postRes = await axios.get(
+			`http://127.0.0.1:8000/api/posts/${post.id}`,
+			{
+				headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+			}
+		)
+		if (postRes.data && postRes.data.data) {
+			currentPost.value = postRes.data.data
+		}
+		
+		// 再加载评论列表
 		const res = await axios.get(
 			`http://127.0.0.1:8000/api/posts/${post.id}/comments/`,
 			{
