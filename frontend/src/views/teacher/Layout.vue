@@ -396,30 +396,7 @@ const teacherStats = ref({
 })
 
 const todayTasks = ref([
-  {
-    id: 1,
-    title: '批改Python基础作业',
-    time: '09:00',
-    priority: 'high',
-    icon: 'EditPen',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    title: '准备数据结构课程',
-    time: '14:00',
-    priority: 'medium',
-    icon: 'Document',
-    status: 'completed'
-  },
-  {
-    id: 3,
-    title: '回答学生问题',
-    time: '16:00',
-    priority: 'high',
-    icon: 'ChatDotRound',
-    status: 'pending'
-  }
+  
 ])
 
 const studentActivities = ref([
