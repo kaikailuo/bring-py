@@ -144,6 +144,56 @@ async def get_course_problems(course_id: str):
         raise HTTPException(status_code=404, detail="课程或题目未找到")
     return {"problems": problems}
 
+@router.get("/courses/{course_id}/status", summary="获取学生在课程下的题目通过状态")
+async def get_course_problem_status(
+    course_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    返回当前学生在指定课程下所有题目的通过状态
+    返回格式: { "lesson/problem": { "passed": bool, "attempts": int }, ... }
+    """
+    try:
+        # 获取该课程下的所有题目
+        problems = svc_get_course_problems(course_id)
+        if not problems:
+            return {"status": {}}
+        
+        # 构建题目路径列表
+        problem_paths = []
+        for p in problems:
+            path = p.get('path', f"{course_id}/{p.get('problem', '')}")
+            problem_paths.append(path)
+        
+        # 查询该学生在这些题目上的提交结果
+        status_map = {}
+        for path in problem_paths:
+            parts = path.split('/')
+            if len(parts) >= 2:
+                lesson = parts[0]
+                problem = parts[1]
+                result = db.query(StudentResult).filter(
+                    StudentResult.student_id == current_user.id,
+                    StudentResult.lesson == lesson,
+                    StudentResult.problem == problem
+                ).first()
+                
+                if result:
+                    status_map[path] = {
+                        "passed": bool(result.passed),
+                        "attempts": result.attempts or 0
+                    }
+                else:
+                    status_map[path] = {
+                        "passed": False,
+                        "attempts": 0
+                    }
+        
+        return {"status": status_map}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取题目状态失败: {str(e)}")
+
 @router.post("/{lesson}/{problem}/run", summary="运行代码")
 async def run_code(lesson: str, problem: str, request: CodeExecutionRequest):
     """
@@ -165,7 +215,14 @@ async def submit_code(lesson: str, problem: str, request: CodeExecutionRequest,
         total = int(res.get('total', 0))
         passed_count = int(res.get('passed', 0))
         overall_passed = False
-        if total > 0:
+        
+        # 判断是否通过：
+        # 1. 如果题目不需要测试（total=0 且 message 包含"无需测试"），直接标记为通过
+        # 2. 否则根据测试结果判断（passed_count >= total）
+        message = res.get('message', '')
+        if total == 0 and ('无需测试' in message or '无需测试' in res.get('result', '')):
+            overall_passed = True
+        elif total > 0:
             overall_passed = (passed_count >= total)
 
         # 更新或创建 StudentResult

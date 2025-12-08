@@ -211,6 +211,7 @@ export const adminAPI = {
 export const problemsAPI = {
   getCourses: () => request('/problems/courses', { method: 'GET' }),
   getCourseProblems: (courseId) => request(`/problems/courses/${courseId}/problems`, { method: 'GET' }),
+  getCourseProblemStatus: (courseId) => request(`/problems/courses/${courseId}/status`, { method: 'GET' }),
   // 获取题目 Markdown（需要以 text 返回）
   getProblemMarkdown: async (lesson, problem) => {
     const res = await fetch(`${API_BASE_URL}/problems/${lesson}/${problem}/problem`)
