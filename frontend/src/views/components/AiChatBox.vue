@@ -13,6 +13,8 @@
           type="textarea"
           :rows="3"
           placeholder="输入内容..."
+          ref="chatInput"
+          @keydown="onKeydown"
         />
         <div class="chat-actions">
           <el-button @click="onSend" type="primary" :loading="loading">发送</el-button>
@@ -50,6 +52,37 @@ const messages = ref([])
 const input = ref('')
 const loading = ref(false)
 const msgs = ref(null)
+const chatInput = ref(null)
+
+// 处理键盘：Enter 发送，Shift+Enter 换行
+function onKeydown(e) {
+  if (e.key !== 'Enter') return
+
+  const target = e.target
+  const isShift = e.shiftKey
+
+  if (!isShift) {
+    e.preventDefault()
+    // 调用发送（保持与按钮行为一致）
+    onSend()
+  } else {
+    // 在光标处插入换行
+    e.preventDefault()
+    try {
+      const start = (target.selectionStart != null) ? target.selectionStart : input.value.length
+      const end = (target.selectionEnd != null) ? target.selectionEnd : start
+      const v = input.value || ''
+      input.value = v.substring(0, start) + '\n' + v.substring(end)
+      // 恢复光标位置到新行后
+      setTimeout(() => {
+        if (target.setSelectionRange) target.setSelectionRange(start + 1, start + 1)
+      }, 0)
+    } catch (err) {
+      // 回退为追加换行
+      input.value = (input.value || '') + '\n'
+    }
+  }
+}
 
 // --- v-model 同步 ---
 watch(modelValue, (v) => {
@@ -170,7 +203,7 @@ async function onSend() {
 .message { margin-bottom: 10px; }
 .message.ai .message-content { background: #f0f4ff; }
 .message.user .message-content { background: #e9f6ef; text-align: right; }
-.message-content { display: inline-block; padding: 8px 12px; border-radius: 6px; }
+.message-content { display: inline-block; padding: 8px 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
 .chat-input { display: flex; flex-direction: column; gap: 8px; }
 .chat-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
