@@ -415,8 +415,12 @@ export const resourceAPI = {
 export const aiAPI = {
   // 请求后端对指定帖子进行 AI 总结
   summarize: (postId) => request('/ai/summarize', { method: 'POST', body: JSON.stringify({ post_id: postId }) }),
-  // 与后端聊天接口，message: 文本，postId: 可选（在summarize模式下传递）
-  chat: (message, postId = null) => request('/ai/chat', { method: 'POST', body: JSON.stringify({ message, post_id: postId }) })
+  // 与后端聊天接口，message: 文本，postId: 可选（在summarize/feedback模式下传递），mode: 'basic'|'summarize'|'feedback'
+  chat: (message, postId = null, mode = 'basic') => request('/ai/chat', { method: 'POST', body: JSON.stringify({ message, post_id: postId, mode }) }),
+  // 清除后端会话记录
+  clearSession: (postId = null, mode = 'basic') => request('/ai/clear-session', { method: 'POST', body: JSON.stringify({ post_id: postId, mode }) }),
+  // 根据题目和提交代码请求 AI 给出建议
+  suggest: (payload) => request('/ai/suggest', { method: 'POST', body: JSON.stringify(payload) })
 }
 
 // 通用 http 方法，放在默认导出之前以避免暂时性死区（TDZ）错误

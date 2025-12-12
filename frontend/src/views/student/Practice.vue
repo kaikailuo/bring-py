@@ -101,32 +101,13 @@
           </el-tab-pane>
 
           <el-tab-pane label="AI助手" name="ai">
-            <div class="ai-assistant-content">
-              <div class="ai-chat">
-                <div class="chat-messages">
-                  <div class="message ai-message">
-                    <div class="message-avatar"><el-icon><StarFilled /></el-icon></div>
-                    <div class="message-content">
-                      <div class="message-text">
-                        你好！我是你的AI编程助手。我可以帮你：
-                        <ul>
-                          <li>解答编程问题</li>
-                          <li>调试代码错误</li>
-                          <li>提供解题思路</li>
-                          <li>优化代码性能</li>
-                        </ul>
-                        有什么问题可以随时问我！
-                      </div>
-                    </div>
+                <div class="ai-assistant-content">
+                  <div class="ai-assistant-placeholder">
+                    <p>AI 建议会在每次提交代码后自动生成。点击下面按钮也可以手动请求建议。</p>
+                    <el-button type="primary" @click="aiTrigger++">请求 AI 建议</el-button>
                   </div>
+                  <PracticeAiChat :problem="currentProblem" :code="currentCode" :trigger="aiTrigger" @suggestion="(s) => { aiSuggestion = s }" />
                 </div>
-
-                <div class="chat-input">
-                  <el-input v-model="aiMessage" placeholder="输入你的编程问题..." type="textarea" :rows="3" @keyup.ctrl.enter="sendAIMessage" />
-                  <el-button type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">发送 (Ctrl+Enter)</el-button>
-                </div>
-              </div>
-            </div>
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -162,6 +143,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MonacoEditor from '../components/MonacoEditor.vue'
+import PracticeAiChat from '../components/PracticeAiChat.vue'
 import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
 import { renderMarkdown } from '../../utils/markdown.js'
 
@@ -193,6 +175,8 @@ const testResults = ref([])
 const running = ref(false)
 const currentProblem = ref(null)
 const aiMessage = ref('')
+const aiTrigger = ref(0)
+const aiSuggestion = ref('')
 // 将后端返回的 Markdown 渲染为安全 HTML
 const renderedDescription = computed(() => {
   const md = currentProblem.value?.description || ''
@@ -399,10 +383,19 @@ const submitSolution = async () => {
         testResults.value = res.testResults || []
       }
       activeTab.value = 'output'
+      // 提交成功后请求 AI 建议：传入题目信息与提交代码
+      try {
+        // 触发 AI 请求（PracticeAiChat 通过 trigger 监听并会在变化时请求）
+        aiTrigger.value = (aiTrigger.value || 0) + 1
+      } catch (e) {
+        console.error('触发 AI 请求失败', e)
+      }
     } else {
       // 本地模拟提交
       await new Promise(resolve => setTimeout(resolve, 500))
       output.value = ['本地模拟：提交已接收']
+      // 本地模拟也可以触发 AI 请求（如果后端可用）
+      aiTrigger.value = (aiTrigger.value || 0) + 1
     }
   } catch (err) {
     console.error('提交失败', err)
@@ -821,6 +814,7 @@ onMounted(() => {
 
 .ai-assistant-content {
   padding: $spacing-lg;
+  overflow-y: hidden;
   height: 100%;
 }
 

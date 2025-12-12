@@ -71,6 +71,27 @@ def build_chat_prompt(history: List[Dict], user_message: str) -> List[Dict]:
     # 最后追加当前用户消息
     messages.append({'role': 'user', 'content': user_message})
     return messages
+
+
+def build_feedback_prompt(problem_title: str, problem_description: str, code: str) -> List[Dict]:
+    """为提交代码生成建议的 prompt。
+
+    返回 messages 列表，第一条为 system 指令，第二条为包含题面与代码的 user 内容。
+    """
+    system = {
+        'role': 'system',
+        'content': (
+            '你是一个面向高中生的编程助教。对于用户提交的代码，请提供简洁、建设性的反馈：指出可能的错误或逻辑缺陷，给出改进建议，必要时给出示例修正代码片段，且不要泄露敏感信息。'
+        )
+    }
+
+    user_lines = [f"题目：{problem_title}", f"题面：{problem_description}", '\n提交的代码：', code]
+    user = {
+        'role': 'user',
+        'content': '\n'.join(user_lines)
+    }
+
+    return [system, user]
 """
 所有prompt模板集中管理
 """

@@ -27,6 +27,7 @@
 
 <script setup>
 import { ref, watch, onMounted, toRefs } from 'vue'
+import { onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import api, { aiAPI } from '@/utils/api'
 
@@ -99,8 +100,25 @@ watch(visible, (v) => {
 })
 
 function handleClose() {
+  // 在关闭时请求后端清理该会话，避免内存增长
+  try {
+    const modeName = mode.value === 'summarize' ? 'summarize' : 'basic'
+    // post.value?.id 可能为 undefined
+    aiAPI.clearSession(post.value?.id ?? null, modeName)
+      .catch(err => console.warn('clearSession failed', err))
+  } catch (e) {
+    console.warn('clearSession call error', e)
+  }
+
   visible.value = false
 }
+
+onBeforeUnmount(() => {
+  try {
+    const modeName = mode.value === 'summarize' ? 'summarize' : 'basic'
+    aiAPI.clearSession(post.value?.id ?? null, modeName).catch(() => {})
+  } catch (e) {}
+})
 
 // -------------------------------------------------------------
 // 打开窗口时根据模式执行不同初始化逻辑
@@ -156,28 +174,28 @@ async function onSend() {
   input.value = ''
   loading.value = true
 
-  try {
-    if (mode.value === 'assistant') {
-      // 普通对话走 chat 接口
       try {
-        const res = await aiAPI.chat(text)
-        if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
-        else messages.value.push({ role: 'ai', text: '（占位）未获取到回复' })
-      } catch (err) {
-        console.error(err)
-        messages.value.push({ role: 'ai', text: 'AI 请求失败' })
-      }
-    } else if (mode.value === 'summarize') {
-      // summarize 模式下的后续对话也走 chat 接口，但携带 post_id 以便后端可以结合上下文处理
-      try {
-        const res = await aiAPI.chat(text, post.value?.id)
-        if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
-        else messages.value.push({ role: 'ai', text: '未获取到回复' })
-      } catch (err) {
-        console.error(err)
-        messages.value.push({ role: 'ai', text: 'AI 请求失败' })
-      }
-    }
+        if (mode.value === 'assistant') {
+          // 普通对话走 chat 接口（basic mode）
+          try {
+            const res = await aiAPI.chat(text, null, 'basic')
+            if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
+            else messages.value.push({ role: 'ai', text: '（占位）未获取到回复' })
+          } catch (err) {
+            console.error(err)
+            messages.value.push({ role: 'ai', text: 'AI 请求失败' })
+          }
+        } else if (mode.value === 'summarize') {
+          // summarize 模式下的后续对话也走 chat 接口，但携带 post_id 与 mode 以便后端可以结合上下文处理
+          try {
+            const res = await aiAPI.chat(text, post.value?.id, 'summarize')
+            if (res?.reply) messages.value.push({ role: 'ai', text: res.reply })
+            else messages.value.push({ role: 'ai', text: '未获取到回复' })
+          } catch (err) {
+            console.error(err)
+            messages.value.push({ role: 'ai', text: 'AI 请求失败' })
+          }
+        }
   } catch (err) {
     console.error(err)
     ElMessage.error('AI 请求失败')

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
 from sqlalchemy.orm import Session
 from app.utils.database import get_db
 from app.models.student_result import StudentResult
@@ -46,7 +46,10 @@ async def summarize_post(req: AISummarizeRequest):
 
 class AIChatRequest(BaseModel):
     message: str
-    post_id: Optional[int] = None
+    # 允许 post_id 为数字或字符串（前端可能传整型 id 或 lesson/problem 字符串）
+    post_id: Optional[Union[int, str]] = None
+    # 指定会话模式以实现不同功能隔离：'basic'|'summarize'|'feedback' 等
+    mode: Optional[str] = 'basic'
 
 
 class AIChatResponse(BaseModel):
@@ -67,7 +70,10 @@ async def chat_endpoint(req: AIChatRequest):
 
     try:
         # handle_chat 已为 async 函数，直接 await
-        reply = await handle_chat(req.message, post_id=req.post_id)
+        # 为兼容前端发送的 int 或 str，将 id 规范化为 str 传入内部处理器，并传递 mode
+        pid = None if req.post_id is None else str(req.post_id)
+        mode = req.mode or 'basic'
+        reply = await handle_chat(req.message, post_id=pid, mode=mode)
         return { 'reply': reply }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -213,3 +219,72 @@ async def analyze_student(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
+
+
+class AISuggestRequest(BaseModel):
+    # problem_id 可能是数字 ID 或字符串标识（例如 lesson-xx/problem_yy），接受两者
+    problem_id: Optional[Union[int, str]] = None
+    problem_title: Optional[str] = ''
+    problem_description: Optional[str] = ''
+    code: Optional[str] = ''
+
+
+class AISuggestResponse(BaseModel):
+    suggestion: Optional[str] = None
+
+
+@router.post('/suggest', response_model=AISuggestResponse)
+async def suggest_endpoint(req: AISuggestRequest):
+    """为一次代码提交生成 AI 建议。前端应当在每次提交后调用此接口。
+
+    接收：problem_id, problem_title, problem_description, code
+    返回：{ suggestion }
+    """
+    try:
+        from app.services.ai.tasks.feedback import suggest_feedback
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'未找到 suggest 实现: {e}')
+
+    try:
+        # 兼容 numeric id 与 string id，内部以字符串形式处理 session/key
+        pid = None if req.problem_id is None else str(req.problem_id)
+        suggestion = await suggest_feedback(
+            problem_id=pid,
+            problem_title=req.problem_title or '',
+            problem_description=req.problem_description or '',
+            code=req.code or ''
+        )
+        # 将 suggestion 注入 feedback 会话中，便于后续基于该建议的追问
+        try:
+            from app.services.ai.tasks.chat import set_summary_for_post
+            set_summary_for_post(pid, suggestion, mode='feedback')
+        except Exception:
+            pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return { 'suggestion': suggestion }
+
+
+class AIClearSessionRequest(BaseModel):
+    # 清理某个会话的历史记录（post_id 可为 int 或 str）
+    post_id: Optional[Union[int, str]] = None
+    # 指定要清理的会话模式：'basic'|'summarize'|'feedback' 等
+    mode: Optional[str] = 'basic'
+
+
+@router.post('/clear-session')
+async def clear_session_endpoint(req: AIClearSessionRequest):
+    """清理指定会话历史，前端在退出对话时应调用以释放后端内存。"""
+    try:
+        from app.services.ai.tasks.chat import clear_session
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'未找到 clear_session 实现: {e}')
+
+    try:
+        pid = None if req.post_id is None else str(req.post_id)
+        mode = req.mode or 'basic'
+        clear_session(pid, mode=mode)
+        return { 'status': 'ok' }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
