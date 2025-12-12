@@ -33,7 +33,12 @@
       <div class="problems-list">
         <div class="problem-item" v-for="problem in filteredProblems" :key="problem.id" @click="loadProblem(problem)">
           <div class="problem-info">
-            <div class="problem-title">{{ problem.title }}</div>
+            <div class="problem-title">
+              {{ problem.title }}
+              <el-icon v-if="isProblemPassed(problem)" class="passed-icon" color="#67c23a">
+                <Check />
+              </el-icon>
+            </div>
             <div class="problem-meta">
               <el-tag size="small" :type="getDifficultyType(problem.difficulty)">{{ getDifficultyText(problem.difficulty) }}</el-tag>
               <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
@@ -153,6 +158,7 @@ const mode = ref('select') // 'select' 表示题目选择界面，'practice' 表
 const courses = ref([])
 const selectedCourse = ref('')
 const courseProblems = ref([])
+const problemStatus = ref({}) // 存储题目通过状态 { "lesson/problem": { passed: bool, attempts: int } }
 
 const enterPractice = (problem) => {
   // 兼容旧入口：若需要快速进入练习，可直接选中已有 problem 对象
@@ -390,6 +396,11 @@ const submitSolution = async () => {
       } catch (e) {
         console.error('触发 AI 请求失败', e)
       }
+      
+      // 提交后刷新题目通过状态
+      if (selectedCourse.value) {
+        await fetchProblemStatus(selectedCourse.value)
+      }
     } else {
       // 本地模拟提交
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -457,10 +468,33 @@ const fetchCourseProblems = async (courseId) => {
       topic: '',
       path: p.path || `${courseId}/${p.problem}`
     }))
+    
+    // 获取题目通过状态
+    await fetchProblemStatus(courseId)
   } catch (err) {
     console.error('fetchCourseProblems error', err)
     courseProblems.value = []
   }
+}
+
+// 获取题目通过状态
+const fetchProblemStatus = async (courseId) => {
+  try {
+    const res = await problemsAPI.getCourseProblemStatus(courseId)
+    if (res && res.status) {
+      problemStatus.value = res.status || {}
+    }
+  } catch (err) {
+    console.error('fetchProblemStatus error', err)
+    problemStatus.value = {}
+  }
+}
+
+// 检查题目是否通过
+const isProblemPassed = (problem) => {
+  if (!problem || !problem.path) return false
+  const status = problemStatus.value[problem.path]
+  return status && status.passed === true
 }
 
 onMounted(() => {
@@ -944,6 +978,14 @@ onMounted(() => {
   font-weight: 500;
   color: $text-primary;
   margin: 0 0 $spacing-xs 0;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.passed-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .problem-info .problem-meta {
