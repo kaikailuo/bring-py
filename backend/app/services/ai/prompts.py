@@ -71,6 +71,60 @@ def build_chat_prompt(history: List[Dict], user_message: str) -> List[Dict]:
     # 最后追加当前用户消息
     messages.append({'role': 'user', 'content': user_message})
     return messages
-"""
-所有prompt模板集中管理
-"""
+
+
+def build_student_analysis_prompt(student_name: str, stats: Dict) -> List[Dict]:
+    """为学生学情分析构建 prompt 列表。
+    
+    student_name: 学生名字
+    stats: 包含学生答题统计信息的字典，包括：
+        - total_attempts: 总答题次数
+        - total_passed: 通过题目数
+        - total_problems: 答题题目数
+        - pass_rate: 通过率百分比
+        - lesson_stats: 按课程分组的统计信息
+    返回 messages 列表
+    """
+    system = {
+        'role': 'system',
+        'content': (
+            '你是一个教育分析助手，专门分析高中生的编程学习情况。'
+            '接下来你会收到一个学生的答题统计数据。'
+            '请根据这些数据，用友好、鼓励、专业的语气生成一份详细的学习分析报告。'
+            '报告应该包括：(1) 总体学习情况评价；(2) 各课程表现分析；(3) 学习优势和不足；(4) 具体的改进建议和鼓励。'
+            '使用 Markdown 格式，确保内容清晰易读，面向高中生和教师。'
+        )
+    }
+    
+    # 构建用户数据内容
+    user_lines = [
+        f"学生名字：{student_name}",
+        f"\n## 答题统计数据\n",
+        f"- 总答题次数：{stats.get('total_attempts', 0)} 次",
+        f"- 答题题目数：{stats.get('total_problems', 0)} 题",
+        f"- 通过题目数：{stats.get('total_passed', 0)} 题",
+        f"- 通过率：{stats.get('pass_rate', 0)}%"
+    ]
+    
+    # 添加按课程分组的统计
+    lesson_stats = stats.get('lesson_stats', {})
+    if lesson_stats:
+        user_lines.append("\n## 各课程表现")
+        for lesson, lesson_data in lesson_stats.items():
+            passed = lesson_data.get('passed', 0)
+            total = lesson_data.get('total', 0)
+            attempts = lesson_data.get('attempts', 0)
+            avg_attempts = round(attempts / total, 1) if total > 0 else 0
+            lesson_pass_rate = round((passed / total * 100) if total > 0 else 0, 2)
+            
+            user_lines.append(
+                f"- **{lesson}**：完成 {total} 题，通过 {passed} 题，"
+                f"通过率 {lesson_pass_rate}%，平均尝试次数 {avg_attempts} 次"
+            )
+    
+    user = {
+        'role': 'user',
+        'content': '\n'.join(user_lines)
+    }
+    
+    return [system, user]
