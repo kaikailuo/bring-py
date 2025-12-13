@@ -1,7 +1,7 @@
 <template>
 	<div class="question-monitor-page">
 		<div class="header">
-			<h2>问题监控</h2>
+			<h2>答疑中心</h2>
 			<p class="subtitle">教师可在此处管理讨论区帖子与用户（删除帖子 / 禁言用户）。</p>
 		</div>
 

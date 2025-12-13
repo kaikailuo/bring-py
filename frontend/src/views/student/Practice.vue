@@ -270,6 +270,35 @@ const getDifficultyText = (difficulty) => {
   return texts[difficulty] || '未知'
 }
 
+// 如果后端没有 difficulty 字段，尝试推断难度：优先使用已有字段或标题关键词，
+// 否则按照题目在列表中的位置做一个简单的近似分布（前1/3 -> easy，中1/3 -> medium，后1/3 -> hard）
+const inferDifficulty = (p, idx, total) => {
+  if (!p) return 'easy'
+  if (p.difficulty) return p.difficulty
+  if (p.level) return p.level
+  const title = (p.title || '').toString().toLowerCase()
+  if (title.includes('简单') || title.includes('easy')) return 'easy'
+  if (title.includes('中等') || title.includes('medium')) return 'medium'
+  if (title.includes('困难') || title.includes('hard')) return 'hard'
+  // 从路径或问题名里查找数字规则（例如 problem_01 -> 可能较简单），如果无法判断则按位置分配
+  const path = (p.path || '').toLowerCase()
+  const m = path.match(/problem[_-]?(\d+)/)
+  if (m && m[1]) {
+    const num = parseInt(m[1], 10)
+    if (!isNaN(num)) {
+      if (num <= 3) return 'easy'
+      if (num <= 6) return 'medium'
+      return 'hard'
+    }
+  }
+  // 按列表索引近似分布
+  const t = Math.max(1, total || 3)
+  const third = Math.ceil(t / 3)
+  if (idx < third) return 'easy'
+  if (idx < 2 * third) return 'medium'
+  return 'hard'
+}
+
 const selectProblem = (problem) => {
   currentProblem.value = problem
   // 根据题目设置初始代码模板
@@ -460,12 +489,13 @@ const fetchCourseProblems = async (courseId) => {
   try {
     const res = await problemsAPI.getCourseProblems(courseId)
     // res.problems 可能为 [{ problem, title, path }, ...]
-    courseProblems.value = (res.problems || []).map((p, idx) => ({
+    const probs = (res.problems || [])
+    courseProblems.value = probs.map((p, idx) => ({
       id: p.problem || idx,
       title: p.title || p.problem || `题目 ${idx + 1}`,
       description: '',
-      difficulty: 'easy',
-      topic: '',
+      difficulty: inferDifficulty(p, idx, probs.length),
+      topic: p.topic || '',
       path: p.path || `${courseId}/${p.problem}`
     }))
     

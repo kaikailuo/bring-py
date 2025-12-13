@@ -34,7 +34,7 @@
           </el-menu-item>
           <el-menu-item index="/teacher/question-monitor">
             <el-icon><ChatDotRound /></el-icon>
-            <span>问题监控</span>
+            <span>答疑中心</span>
           </el-menu-item>
         </el-menu>
       </div>
