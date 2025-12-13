@@ -128,6 +128,19 @@ def build_problem_generation_prompt(description: str) -> List[Dict]:
                 例如：a, b = map(int, input().split())。'
             '10. 禁止在 solution 中通过构造 list / tuple / dict 来存储全部输入数据，应按题目逻辑逐项读取、逐项处理、直接输出结果。'
 
+            '【输入形态强制约束（必须遵守）】\
+            11. 题目必须明确声明输入属于以下两种形态之一，并且 solution 必须严格匹配：\
+                A. 单行输入：所有数据位于同一行，使用空格分隔。\
+                - solution 中必须使用一次 input().split() 读取该行。\
+                - 禁止将输入拆分为多次 input() 调用。\
+                B. 多行输入：第一行给出明确的整数 n，表示后续输入行数或数据项数量。\
+                - solution 中必须首先读取 n，并严格读取后续 n 次 input()。\
+                - 禁止在 README 未声明 n 的情况下，solution 自行引入 n 或循环读取。'
+            '12. 若 README.md 的“输入格式”中未出现表示数量的变量（如 n、m、t），\
+                solution 中禁止出现任何基于 range(...) 的输入循环。'
+            '13. 若输入格式为“单行输入多个数”，solution 中必须在同一行使用\
+                a, b, c = map(int, input().split())\
+                或逐个解包，不得改写为多次 input()。'
             'readme 字段内容须严格遵循以下结构（示例参照）：\n'
             '# <题目标题>\n\n'
             '### 题目描述\n\n'
@@ -189,6 +202,60 @@ def build_tests_generation_prompt(readme: str, solution: str, count: int = 20) -
     }
 
     return [system, user]
-"""
-所有prompt模板集中管理
-"""
+
+
+def build_student_analysis_prompt(student_name: str, stats: Dict) -> List[Dict]:
+    """为学生学情分析构建 prompt 列表。
+    
+    student_name: 学生名字
+    stats: 包含学生答题统计信息的字典，包括：
+        - total_attempts: 总答题次数
+        - total_passed: 通过题目数
+        - total_problems: 答题题目数
+        - pass_rate: 通过率百分比
+        - lesson_stats: 按课程分组的统计信息
+    返回 messages 列表
+    """
+    system = {
+        'role': 'system',
+        'content': (
+            '你是一个教育分析助手，专门分析高中生的编程学习情况。'
+            '接下来你会收到一个学生的答题统计数据。'
+            '请根据这些数据，用友好、鼓励、专业的语气生成一份详细的学习分析报告。'
+            '报告应该包括：(1) 总体学习情况评价；(2) 各课程表现分析；(3) 学习优势和不足；(4) 具体的改进建议和鼓励。'
+            '使用 Markdown 格式，确保内容清晰易读，面向高中生和教师。'
+        )
+    }
+    
+    # 构建用户数据内容
+    user_lines = [
+        f"学生名字：{student_name}",
+        f"\n## 答题统计数据\n",
+        f"- 总答题次数：{stats.get('total_attempts', 0)} 次",
+        f"- 答题题目数：{stats.get('total_problems', 0)} 题",
+        f"- 通过题目数：{stats.get('total_passed', 0)} 题",
+        f"- 通过率：{stats.get('pass_rate', 0)}%"
+    ]
+    
+    # 添加按课程分组的统计
+    lesson_stats = stats.get('lesson_stats', {})
+    if lesson_stats:
+        user_lines.append("\n## 各课程表现")
+        for lesson, lesson_data in lesson_stats.items():
+            passed = lesson_data.get('passed', 0)
+            total = lesson_data.get('total', 0)
+            attempts = lesson_data.get('attempts', 0)
+            avg_attempts = round(attempts / total, 1) if total > 0 else 0
+            lesson_pass_rate = round((passed / total * 100) if total > 0 else 0, 2)
+            
+            user_lines.append(
+                f"- **{lesson}**：完成 {total} 题，通过 {passed} 题，"
+                f"通过率 {lesson_pass_rate}%，平均尝试次数 {avg_attempts} 次"
+            )
+    
+    user = {
+        'role': 'user',
+        'content': '\n'.join(user_lines)
+    }
+    
+    return [system, user]

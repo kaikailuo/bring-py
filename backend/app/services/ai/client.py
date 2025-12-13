@@ -15,7 +15,7 @@ class AIClientError(RuntimeError):
 
 
 async def call_llm(messages: list, temperature: float = 0.7,
-                   model: str = "qwen2.5-7b-instruct-1m") -> str:
+                   model: str = "qwen3-max") -> str:
     """
     通义千问 DashScope HTTP 版本（OpenAI 兼容模式）
     返回 assistant 的文本内容

@@ -261,7 +261,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed, nextTick, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import {
@@ -361,11 +361,13 @@ const loadData = async () => {
 
 // 更新图表
 const updateChart = () => {
-  if (!chartContainer.value || !stats.value.students.length) return
+  if (!chartContainer.value || !stats.value.students || !stats.value.students.length) return
 
   // 初始化或获取图表实例
   if (!chartInstance.value) {
     chartInstance.value = echarts.init(chartContainer.value)
+    // 只在初始化时添加resize监听
+    window.addEventListener('resize', handleResize)
   }
 
   // 准备数据
@@ -482,13 +484,6 @@ const updateChart = () => {
   }
 
   chartInstance.value.setOption(option, true)
-
-  // 响应式调整
-  window.addEventListener('resize', () => {
-    if (chartInstance.value) {
-      chartInstance.value.resize()
-    }
-  })
 }
 
 // 获取通过率颜色
@@ -602,9 +597,25 @@ const filterStudents = () => {
   // 过滤逻辑已在 computed 中实现
 }
 
+// 定义resize处理函数
+const handleResize = () => {
+  if (chartInstance.value) {
+    chartInstance.value.resize()
+  }
+}
+
 // 组件挂载时加载数据
 onMounted(() => {
   loadData()
+})
+
+// 组件卸载时清理
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance.value) {
+    chartInstance.value.dispose()
+    chartInstance.value = null
+  }
 })
 </script>
 
