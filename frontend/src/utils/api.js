@@ -422,6 +422,11 @@ export const aiAPI = {
   clearSession: (postId = null, mode = 'basic') => request('/ai/clear-session', { method: 'POST', body: JSON.stringify({ post_id: postId, mode }) }),
   // 根据题目和提交代码请求 AI 给出建议
   suggest: (payload) => request('/ai/suggest', { method: 'POST', body: JSON.stringify(payload) })
+  ,
+  // 教师向导：根据简要描述生成题面与参考答案（返回 { readme, solution }）
+  generateProblem: (payload) => request('/ai/generate/problem', { method: 'POST', body: JSON.stringify(payload) }),
+  // 教师向导：根据 README 与 solution 生成 20 个测试用例（返回 { tests: [{input, output}, ...] }）
+  generateTests: (payload) => request('/ai/generate/tests', { method: 'POST', body: JSON.stringify(payload) })
 }
 
 // 通用 http 方法，放在默认导出之前以避免暂时性死区（TDZ）错误

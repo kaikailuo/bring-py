@@ -11,6 +11,45 @@ from app.schemas.user import ApiResponse
 router = APIRouter(prefix='/ai', tags=['AI'])
 
 
+class AIGenerateProblemRequest(BaseModel):
+    description: str
+
+
+class AIGenerateTestsRequest(BaseModel):
+    readme: str
+    solution: str
+    count: Optional[int] = 20
+
+
+@router.post('/generate/problem')
+async def generate_problem_endpoint(req: AIGenerateProblemRequest):
+    try:
+        from app.services.ai.tasks.generator import generate_problem
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'未找到 generator 实现: {e}')
+
+    try:
+        res = await generate_problem(req.description)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/generate/tests')
+async def generate_tests_endpoint(req: AIGenerateTestsRequest):
+    try:
+        from app.services.ai.tasks.generator import generate_tests
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'未找到 generator 实现: {e}')
+
+    try:
+        res = await generate_tests(req.readme, req.solution, req.count or 20)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 class AISummarizeRequest(BaseModel):
     post_id: int
 

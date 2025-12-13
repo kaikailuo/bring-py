@@ -263,5 +263,16 @@ async def check_tests(request: CheckTestsRequest):
     """接收任意代码与 tests（[{input, output}, ...]），在后端运行并返回每个用例的结果。
     该接口不创建题目，仅用于向导中检测测评集是否正确。
     """
-    res = await asyncio.to_thread(lambda: svc_run_code_against_tests(request.code, request.tests))
+    # 兼容前端或用户直接粘贴 Markdown 格式的 solution（包含 ```python ``` code fence）的情况，
+    # 在后端也做一次清理，提取 code block 内的纯 Python 代码
+    code = request.code or ''
+    try:
+        import re
+        m = re.search(r"```(?:python\n)?([\s\S]*?)```", code, re.IGNORECASE)
+        if m and m.group(1):
+            code = m.group(1)
+    except Exception:
+        pass
+
+    res = await asyncio.to_thread(lambda: svc_run_code_against_tests(code, request.tests))
     return res

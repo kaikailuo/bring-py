@@ -35,6 +35,7 @@
           <el-button :type="currentEdit === 'readme' ? 'primary' : 'default'" @click="currentEdit = 'readme'">编辑 README.md</el-button>
           <el-button :type="currentEdit === 'solution' ? 'primary' : 'default'" @click="currentEdit = 'solution'">编辑 solution.md</el-button>
           <el-switch v-model="showPreview" active-text="预览" inactive-text="编辑" />
+          <el-button style="margin-left:auto" type="warning" size="small" @click="openAIGenerateDialog">AI 生成题面与参考答案</el-button>
         </div>
 
         <div v-if="!showPreview">
@@ -46,17 +47,31 @@
       <div v-show="activeStep === 3" class="step-content">
         <h3>步骤 3：编写测试用例</h3>
         <div style="margin-bottom:8px; display:flex; align-items:center; gap:12px">
-          <span>启用测评（has_test）</span>
+          <span>启用测评</span>
           <el-switch v-model="hasTest" active-text="是" inactive-text="否" />
-          <div style="margin-left:12px; color:#666">若关闭则不会为该题生成测评用例</div>
+          <div style="margin-left:12px; color:#666">若关闭则不会为该题生成测评用例，此题不测试</div>
         </div>
         <div v-if="!hasTest" style="margin-bottom:12px;color:#666">当前题目不启用测评，跳过测试用例填写即可。</div>
         <div v-if="hasTest" class="tests-grid">
           <div v-for="(t, idx) in tests" :key="idx" class="test-unit">
-            <div class="test-unit-header">测试 {{ idx + 1 }}</div>
-            <div><label>输入：</label><textarea v-model="tests[idx].input" rows="3"></textarea></div>
-            <div style="margin-top:6px"><label>期望输出：</label><textarea v-model="tests[idx].output" rows="3"></textarea></div>
-            <div style="margin-top:6px">
+            <div class="test-index">{{ idx + 1 }}</div>
+
+            <div class="test-field">
+              <div class="field-label">输入</div>
+              <textarea class="field-input" v-model="tests[idx].input" rows="2" @input="onTestInput(idx)" placeholder="输入文本（可多行）"></textarea>
+            </div>
+
+            <div class="test-field">
+              <div class="field-label">期望输出</div>
+              <textarea class="field-input" v-model="tests[idx].output" rows="2" @input="onTestInput(idx)" placeholder="期望输出（可多行）"></textarea>
+            </div>
+
+            <div class="test-actual" :title="(lastCheck && lastCheck.raw && lastCheck.raw.testResults && lastCheck.raw.testResults[idx]) ? lastCheck.raw.testResults[idx].actual : ''">
+              <div class="actual-label">实际输出</div>
+              <div class="actual-value">{{ (lastCheck && lastCheck.raw && lastCheck.raw.testResults && lastCheck.raw.testResults[idx]) ? lastCheck.raw.testResults[idx].actual : '' }}</div>
+            </div>
+
+            <div class="test-status">
               <el-tag v-if="lastCheck && lastCheck.raw && lastCheck.raw.testResults && lastCheck.raw.testResults[idx]" :type="lastCheck.raw.testResults[idx].passed ? 'success' : 'danger'">
                 {{ lastCheck.raw.testResults[idx].passed ? '通过' : '失败' }}
               </el-tag>
@@ -65,6 +80,7 @@
         </div>
 
         <div style="margin-top:12px; display:flex; gap:8px; align-items:center">
+          <el-button v-if="hasTest" type="info" @click="generateTestsByAI">AI 生成 20 个测试用例</el-button>
           <el-button v-if="hasTest" type="primary" :loading="checkRunning" @click="runCheckTests">测评集检测（运行 solution.md）</el-button>
           <el-button v-if="hasTest" @click="resetTests">重置所有用例</el-button>
           <div style="margin-left:12px">测评状态：<strong v-if="lastCheck">{{ lastCheck.passed ? '全部通过' : '未全部通过' }}</strong><span v-else>未检测</span></div>
@@ -114,12 +130,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MonacoEditor from '@/views/components/MonacoEditor.vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { renderMarkdown } from '@/utils/markdown'
-import { problemsAPI } from '@/utils/api'
+import { problemsAPI, aiAPI } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +152,154 @@ const solution = ref('')
 const showPreview = ref(false)
 
 const sessionKey = 'create_assignment_draft'
+
+// AI 生成状态
+const aiGeneratingProblem = ref(false)
+const aiGeneratingTests = ref(false)
+
+function openAIGenerateDialog() {
+  // 简单确认对话后触发生成（可以扩展为输入对话）
+  ElMessageBox.prompt('请输入对题目的简要描述（几句话即可）', 'AI 生成题面与参考答案', {
+    confirmButtonText: '生成',
+    cancelButtonText: '取消',
+    inputPlaceholder: '例如：求两个数之和，输入两整数，用空格分隔，输出它们的和。'
+  }).then(({ value }) => {
+    generateProblemByAI(value)
+  }).catch(() => {})
+}
+
+async function generateProblemByAI(description) {
+  if (!description || !description.trim()) {
+    ElMessage.warning('描述不能为空')
+    return
+  }
+  aiGeneratingProblem.value = true
+  try {
+    const resRaw = await aiAPI.generateProblem({ description })
+    let payload = resRaw
+
+    // 支持后端不同包装方式：
+    // 1) 直接返回 { readme, solution }
+    // 2) 返回 { code, data: { readme, solution } }
+    // 3) 返回字符串化的 JSON
+    if (payload && payload.data && (payload.data.readme || payload.data.solution)) {
+      payload = payload.data
+    }
+
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload)
+      } catch (err) {
+        // 有时后端会把 JSON 当作字符串返回并包含转义，尝试从字符串中提取
+        try {
+          const m = payload.match(/\{[\s\S]*\}/)
+          if (m) payload = JSON.parse(m[0])
+        } catch (e2) {
+          // ignore
+        }
+      }
+    }
+
+    if (payload && (payload.readme || payload.solution)) {
+      readme.value = payload.readme || readme.value
+      solution.value = payload.solution || solution.value
+      saveDraft()
+      ElMessage.success('AI 已生成题面与参考答案，已填入编辑器')
+    } else {
+      console.error('AI 返回数据格式异常', resRaw)
+      ElMessage.error('AI 未返回有效内容（请查看控制台）')
+    }
+  } catch (e) {
+    console.error('AI 生成题面失败', e)
+    ElMessage.error((e && e.message) || 'AI 生成失败')
+  } finally {
+    aiGeneratingProblem.value = false
+  }
+}
+
+async function generateTestsByAI() {
+  // 需要 solution 与 readme 存在
+  if (!solution.value || !solution.value.trim()) {
+    ElMessage.warning('请先填写或生成参考答案（solution.md）')
+    return
+  }
+  aiGeneratingTests.value = true
+  try {
+    const payload = { readme: readme.value, solution: solution.value, count: 20 }
+    const resRaw = await aiAPI.generateTests(payload)
+    let payloadRes = resRaw
+    if (payloadRes && payloadRes.data && Array.isArray(payloadRes.data.tests)) {
+      payloadRes = payloadRes.data
+    }
+
+    if (typeof payloadRes === 'string') {
+      try {
+        payloadRes = JSON.parse(payloadRes)
+      } catch (err) {
+        try {
+          const m = payloadRes.match(/\{[\s\S]*\}/)
+          if (m) payloadRes = JSON.parse(m[0])
+        } catch (e2) {}
+      }
+    }
+
+    if (payloadRes && Array.isArray(payloadRes.tests)) {
+      const ts = payloadRes.tests.slice(0, 20)
+      while (ts.length < 20) ts.push({ input: '', output: '' })
+      tests.value = ts.map(t => ({ input: t.input || '', output: t.output || '' }))
+      saveDraft()
+      ElMessage.success('AI 已生成测试用例，已填入表格')
+    } else {
+      console.error('AI 返回测试用例格式异常', resRaw)
+      ElMessage.error('AI 未返回有效测试用例（请查看控制台）')
+    }
+  } catch (e) {
+    console.error('AI 生成测试用例失败', e)
+    ElMessage.error((e && e.message) || 'AI 生成测试用例失败')
+  } finally {
+    aiGeneratingTests.value = false
+  }
+}
+
+function adjustTestHeights() {
+  // 对每个 test-unit，同步其内部 .field-input（可能有两个）和 .actual-value 的高度为最大高度
+  nextTick(() => {
+    const units = document.querySelectorAll('.test-unit') || []
+    units.forEach(u => {
+      try {
+        const inputs = Array.from(u.querySelectorAll('.field-input'))
+        const actual = u.querySelector('.actual-value')
+        // reset heights to auto to measure
+        inputs.forEach(el => { el.style.height = 'auto' })
+        if (actual) actual.style.height = 'auto'
+
+        const heights = inputs.map(el => el.scrollHeight || el.offsetHeight)
+        if (actual) heights.push(actual.scrollHeight || actual.offsetHeight)
+        const maxH = Math.max(...(heights.length ? heights : [40]))
+
+        const target = Math.max(40, maxH)
+        inputs.forEach(el => { el.style.height = target + 'px' })
+        if (actual) actual.style.height = target + 'px'
+      } catch (err) {
+        // ignore per-item errors
+      }
+    })
+  })
+}
+
+function onTestInput(idx) {
+  saveDraft()
+  adjustTestHeights()
+}
+
+// 在数据变化时调整高度
+watch(tests, () => { adjustTestHeights() }, { deep: true })
+watch(lastCheck, () => { adjustTestHeights() })
+
+onMounted(() => {
+  // existing onMounted logic below runs earlier; ensure we also adjust heights after mount
+  adjustTestHeights()
+})
 
 onMounted(() => {
   // 读取草稿（若存在）
@@ -398,20 +562,51 @@ async function runCheckTests() {
   checkRunning.value = true
   lastCheck.value = null
   try {
-    const res = await problemsAPI.checkTests(solution.value, tests.value)
-    // 服务器返回 { total, passed, testResults }
-    const passedAll = res.passed === res.total && res.total > 0
-    lastCheck.value = { raw: res, passed: passedAll }
-    if (passedAll) {
-      ElMessage.success(`测评通过：${res.passed}/${res.total}`)
+    // 如果 solution 包含 markdown code fences（```python ... ```），摘取代码块内部内容
+    let codeToRun = solution.value || ''
+    try {
+      const m = codeToRun.match(/```(?:python\n)?([\s\S]*?)```/i)
+      if (m && m[1]) {
+        codeToRun = m[1].trim()
+      }
+    } catch (e) {
+      // ignore regex errors
+    }
+
+    let res = await problemsAPI.checkTests(codeToRun, tests.value)
+    // 兼容后端 ApiResponse 包装（{ code:200, message:'', data: {...} }）
+    if (res && res.data) res = res.data
+
+    // 调试输出完整结构
+    console.debug('checkTests response:', res)
+
+    // 如果后端返回了详细的 testResults，优先显示并在控制台打印 stderr
+    if (res && Array.isArray(res.testResults)) {
+      // 若有 stderr 或 error，收集并显示第一个错误给用户
+      const firstErr = res.testResults.find(r => r.stderr || r.error)
+      if (firstErr) {
+        console.warn('first test error:', firstErr)
+        const msg = (firstErr.error || firstErr.stderr || '').toString()
+        ElMessage.error(`部分用例运行出错（查看控制台或详情）: ${msg.slice(0, 200)}`)
+      }
+    }
+
+    const passedAll = res && (res.passed === res.total) && (res.total > 0)
+    lastCheck.value = { raw: res, passed: !!passedAll }
+
+    if (res) {
+      if (passedAll) ElMessage.success(`测评通过：${res.passed}/${res.total}`)
+      else ElMessage.error(`测评未全部通过：${res.passed}/${res.total}`)
     } else {
-      ElMessage.error(`测评未全部通过：${res.passed}/${res.total}`)
+      ElMessage.error('未收到后端返回的数据（请查看控制台）')
     }
   } catch (e) {
-    console.error(e)
-    ElMessage.error(e.message || '测评失败')
+    console.error('runCheckTests error:', e)
+    ElMessage.error(e && e.message ? e.message : '测评失败（详情见控制台）')
   } finally {
     checkRunning.value = false
+    // 确保在 DOM 更新后调整高度
+    adjustTestHeights()
   }
 }
 
@@ -470,4 +665,23 @@ function finish() {
 .resource-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eee }
 .markdown-preview { padding:12px; border:1px solid #eee; border-radius:6px; background:#fff; min-height:300px }
 .wizard-footer { margin-top:12px; display:flex; justify-content:flex-end; gap:8px }
+
+/* Tests UI styles */
+.tests-grid { display:flex; flex-direction:column; gap:8px; margin-top:8px }
+.test-unit { display:flex; align-items:center; gap:12px; padding:10px; border:1px solid #f0f0f0; border-radius:8px; background: #ffffff; box-shadow: 0 1px 0 rgba(0,0,0,0.02) }
+.test-index { width:36px; text-align:center; font-weight:600; color:#606266 }
+.test-field { flex:1; display:flex; flex-direction:column }
+.field-label { font-size:12px; color:#909399; margin-bottom:4px }
+.field-input { width:100%; padding:6px 10px; border:1px solid #ebeef5; border-radius:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Helvetica Neue', monospace; font-size:13px; color:#303133; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.field-input { width:100%; padding:6px 10px; border:1px solid #ebeef5; border-radius:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Helvetica Neue', monospace; font-size:13px; color:#303133; overflow:auto; white-space:pre-wrap; resize:vertical }
+.test-actual { width:260px; display:flex; flex-direction:column }
+.actual-label { font-size:12px; color:#909399; margin-bottom:4px }
+.actual-value { background:#f7f7fa; border:1px solid #eef0f6; padding:6px 8px; border-radius:6px; font-family: ui-monospace, Menlo, Monaco, monospace; font-size:13px; color:#303133; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.test-status { width:84px; display:flex; justify-content:center }
+
+@media (max-width: 900px) {
+  .test-unit { flex-wrap:wrap }
+  .test-actual, .test-status, .test-index { width:100% }
+  .test-field { width:100% }
+}
 </style>
