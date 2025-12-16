@@ -152,5 +152,40 @@
     "title": "例题4-4：购书问题",
     "path": "lesson_04/problem_04",
     "has_test": true
+  },
+  {
+    "lesson": 1,
+    "problem": 2,
+    "title": "例题1-2：绘制太阳图形（循环角度）",
+    "path": "lesson_01/problem_02",
+    "has_test": false
+  },
+  {
+    "lesson": 1,
+    "problem": 3,
+    "title": "例题1-3：绘制彩虹螺旋",
+    "path": "lesson_01/problem_03",
+    "has_test": false
+  },
+  {
+    "lesson": 1,
+    "problem": 4,
+    "title": "例题1-4：绘制星形",
+    "path": "lesson_01/problem_04",
+    "has_test": false
+  },
+  {
+    "lesson": 1,
+    "problem": 5,
+    "title": "例题1-5：绘制奥运五环",
+    "path": "lesson_01/problem_05",
+    "has_test": false
+  },
+  {
+    "lesson": 1,
+    "problem": 6,
+    "title": "例题1-6：绘制小房子（综合）",
+    "path": "lesson_01/problem_06",
+    "has_test": false
   }
 ]

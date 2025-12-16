@@ -23,7 +23,7 @@
         <h3>选择一个题目开始练习</h3>
         <div style="display:flex; gap:8px; align-items:center">
           <el-select v-model="selectedCourse" placeholder="选择课程" size="small" style="min-width:180px" @change="fetchCourseProblems">
-            <el-option v-for="c in courses" :key="c" :label="c" :value="c" />
+            <el-option v-for="c in courses" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
           <el-button size="small" @click="refreshProblems">
             <el-icon><Refresh /></el-icon>
@@ -33,7 +33,12 @@
       <div class="problems-list">
         <div class="problem-item" v-for="problem in filteredProblems" :key="problem.id" @click="loadProblem(problem)">
           <div class="problem-info">
-            <div class="problem-title">{{ problem.title }}</div>
+            <div class="problem-title">
+              {{ problem.title }}
+              <el-icon v-if="isProblemPassed(problem)" class="passed-icon" color="#67c23a">
+                <Check />
+              </el-icon>
+            </div>
             <div class="problem-meta">
               <el-tag size="small" :type="getDifficultyType(problem.difficulty)">{{ getDifficultyText(problem.difficulty) }}</el-tag>
               <el-tag size="small" type="info">{{ problem.topic }}</el-tag>
@@ -101,32 +106,13 @@
           </el-tab-pane>
 
           <el-tab-pane label="AI助手" name="ai">
-            <div class="ai-assistant-content">
-              <div class="ai-chat">
-                <div class="chat-messages">
-                  <div class="message ai-message">
-                    <div class="message-avatar"><el-icon><StarFilled /></el-icon></div>
-                    <div class="message-content">
-                      <div class="message-text">
-                        你好！我是你的AI编程助手。我可以帮你：
-                        <ul>
-                          <li>解答编程问题</li>
-                          <li>调试代码错误</li>
-                          <li>提供解题思路</li>
-                          <li>优化代码性能</li>
-                        </ul>
-                        有什么问题可以随时问我！
-                      </div>
-                    </div>
+                <div class="ai-assistant-content">
+                  <div class="ai-assistant-placeholder">
+                    <p>AI 建议会在每次提交代码后自动生成。点击下面按钮也可以手动请求建议。</p>
+                    <el-button type="primary" @click="aiTrigger++">请求 AI 建议</el-button>
                   </div>
+                  <PracticeAiChat :problem="currentProblem" :code="currentCode" :trigger="aiTrigger" @suggestion="(s) => { aiSuggestion = s }" />
                 </div>
-
-                <div class="chat-input">
-                  <el-input v-model="aiMessage" placeholder="输入你的编程问题..." type="textarea" :rows="3" @keyup.ctrl.enter="sendAIMessage" />
-                  <el-button type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">发送 (Ctrl+Enter)</el-button>
-                </div>
-              </div>
-            </div>
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -150,7 +136,7 @@
             </div>
 
             <div class="editor-content">
-              <MonacoEditor v-model="currentCode" />
+              <MonacoEditor v-model="currentCode" language="python" />
             </div>
           </div>
         </div>
@@ -161,7 +147,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import MonacoEditor from './MonacoEditor.vue'
+import MonacoEditor from '../components/MonacoEditor.vue'
+import PracticeAiChat from '../components/PracticeAiChat.vue'
 import { problemsAPI, API_BASE_URL as _API_BASE_URL } from '../../utils/api.js'
 import { renderMarkdown } from '../../utils/markdown.js'
 
@@ -171,6 +158,7 @@ const mode = ref('select') // 'select' 表示题目选择界面，'practice' 表
 const courses = ref([])
 const selectedCourse = ref('')
 const courseProblems = ref([])
+const problemStatus = ref({}) // 存储题目通过状态 { "lesson/problem": { passed: bool, attempts: int } }
 
 const enterPractice = (problem) => {
   // 兼容旧入口：若需要快速进入练习，可直接选中已有 problem 对象
@@ -193,6 +181,8 @@ const testResults = ref([])
 const running = ref(false)
 const currentProblem = ref(null)
 const aiMessage = ref('')
+const aiTrigger = ref(0)
+const aiSuggestion = ref('')
 // 将后端返回的 Markdown 渲染为安全 HTML
 const renderedDescription = computed(() => {
   const md = currentProblem.value?.description || ''
@@ -278,6 +268,35 @@ const getDifficultyText = (difficulty) => {
     hard: '困难'
   }
   return texts[difficulty] || '未知'
+}
+
+// 如果后端没有 difficulty 字段，尝试推断难度：优先使用已有字段或标题关键词，
+// 否则按照题目在列表中的位置做一个简单的近似分布（前1/3 -> easy，中1/3 -> medium，后1/3 -> hard）
+const inferDifficulty = (p, idx, total) => {
+  if (!p) return 'easy'
+  if (p.difficulty) return p.difficulty
+  if (p.level) return p.level
+  const title = (p.title || '').toString().toLowerCase()
+  if (title.includes('简单') || title.includes('easy')) return 'easy'
+  if (title.includes('中等') || title.includes('medium')) return 'medium'
+  if (title.includes('困难') || title.includes('hard')) return 'hard'
+  // 从路径或问题名里查找数字规则（例如 problem_01 -> 可能较简单），如果无法判断则按位置分配
+  const path = (p.path || '').toLowerCase()
+  const m = path.match(/problem[_-]?(\d+)/)
+  if (m && m[1]) {
+    const num = parseInt(m[1], 10)
+    if (!isNaN(num)) {
+      if (num <= 3) return 'easy'
+      if (num <= 6) return 'medium'
+      return 'hard'
+    }
+  }
+  // 按列表索引近似分布
+  const t = Math.max(1, total || 3)
+  const third = Math.ceil(t / 3)
+  if (idx < third) return 'easy'
+  if (idx < 2 * third) return 'medium'
+  return 'hard'
 }
 
 const selectProblem = (problem) => {
@@ -399,10 +418,24 @@ const submitSolution = async () => {
         testResults.value = res.testResults || []
       }
       activeTab.value = 'output'
+      // 提交成功后请求 AI 建议：传入题目信息与提交代码
+      try {
+        // 触发 AI 请求（PracticeAiChat 通过 trigger 监听并会在变化时请求）
+        aiTrigger.value = (aiTrigger.value || 0) + 1
+      } catch (e) {
+        console.error('触发 AI 请求失败', e)
+      }
+      
+      // 提交后刷新题目通过状态
+      if (selectedCourse.value) {
+        await fetchProblemStatus(selectedCourse.value)
+      }
     } else {
       // 本地模拟提交
       await new Promise(resolve => setTimeout(resolve, 500))
       output.value = ['本地模拟：提交已接收']
+      // 本地模拟也可以触发 AI 请求（如果后端可用）
+      aiTrigger.value = (aiTrigger.value || 0) + 1
     }
   } catch (err) {
     console.error('提交失败', err)
@@ -439,11 +472,12 @@ const refreshProblems = () => {
 
 // 获取课程列表并自动加载第一个课程的题目
 const fetchCourses = async () => {
-  try {
+    try {
     const res = await problemsAPI.getCourses()
     courses.value = res.courses || []
     if (courses.value.length > 0) {
-      selectedCourse.value = courses.value[0]
+      // courses 为 [{id,name}]，默认选择第一个的 id
+      selectedCourse.value = courses.value[0].id
       await fetchCourseProblems(selectedCourse.value)
     }
   } catch (err) {
@@ -455,18 +489,42 @@ const fetchCourseProblems = async (courseId) => {
   try {
     const res = await problemsAPI.getCourseProblems(courseId)
     // res.problems 可能为 [{ problem, title, path }, ...]
-    courseProblems.value = (res.problems || []).map((p, idx) => ({
+    const probs = (res.problems || [])
+    courseProblems.value = probs.map((p, idx) => ({
       id: p.problem || idx,
       title: p.title || p.problem || `题目 ${idx + 1}`,
       description: '',
-      difficulty: 'easy',
-      topic: '',
+      difficulty: inferDifficulty(p, idx, probs.length),
+      topic: p.topic || '',
       path: p.path || `${courseId}/${p.problem}`
     }))
+    
+    // 获取题目通过状态
+    await fetchProblemStatus(courseId)
   } catch (err) {
     console.error('fetchCourseProblems error', err)
     courseProblems.value = []
   }
+}
+
+// 获取题目通过状态
+const fetchProblemStatus = async (courseId) => {
+  try {
+    const res = await problemsAPI.getCourseProblemStatus(courseId)
+    if (res && res.status) {
+      problemStatus.value = res.status || {}
+    }
+  } catch (err) {
+    console.error('fetchProblemStatus error', err)
+    problemStatus.value = {}
+  }
+}
+
+// 检查题目是否通过
+const isProblemPassed = (problem) => {
+  if (!problem || !problem.path) return false
+  const status = problemStatus.value[problem.path]
+  return status && status.passed === true
 }
 
 onMounted(() => {
@@ -820,6 +878,7 @@ onMounted(() => {
 
 .ai-assistant-content {
   padding: $spacing-lg;
+  overflow-y: hidden;
   height: 100%;
 }
 
@@ -949,6 +1008,14 @@ onMounted(() => {
   font-weight: 500;
   color: $text-primary;
   margin: 0 0 $spacing-xs 0;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.passed-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .problem-info .problem-meta {

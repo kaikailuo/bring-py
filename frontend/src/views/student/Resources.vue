@@ -12,8 +12,12 @@
         />
         <el-select v-model="selectedCourse" placeholder="选择课程" style="width: 150px" @change="handleSearch">
           <el-option label="全部课程" value="all" />
-          <el-option label="全部" value="all_course" />
-          <el-option label="第一课" value="lesson1" />
+          <el-option 
+            v-for="course in courses" 
+            :key="course.id" 
+            :label="course.name" 
+            :value="course.id" 
+          />
         </el-select>
         <el-select v-model="selectedCategory" placeholder="选择分类" style="width: 150px">
           <el-option label="全部" value="all" />
@@ -84,9 +88,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 // 在script setup的顶部导入API
-import { resourceAPI } from '@/utils/api'
+import { resourceAPI, problemsAPI } from '@/utils/api'
 
 // 响应式数据 - 只声明一次
 const searchKeyword = ref('')
@@ -95,6 +99,7 @@ const selectedCourse = ref('all') // 添加课程选择
 // 初始化空数组，通过API获取真实数据
 const categories = ref([])
 const resources = ref([])
+const courses = ref([]) // 课程列表
 
 // 计算属性
 const filteredResources = computed(() => {
@@ -129,9 +134,8 @@ async function fetchResources() {
     
     // 添加课程筛选
     if (selectedCourse.value && selectedCourse.value !== 'all') {
-      // 如果选择的是"全部"课程（all_course），筛选course_id为"all"的资源
-      // 如果选择的是"第一课"（lesson1），筛选course_id为"lesson1"的资源
-      params.course_id_filter = selectedCourse.value === 'all_course' ? 'all' : selectedCourse.value
+      // 直接使用选中的课程ID进行筛选
+      params.course_id_filter = selectedCourse.value
     }
     
     const response = await resourceAPI.getResources(params)
@@ -258,6 +262,23 @@ function downloadResource(resource) {
   }
 }
 
+// 获取课程列表
+async function fetchCourses() {
+  try {
+    const response = await problemsAPI.getCourses()
+    // 后端返回格式为 {"courses": [...]}
+    if (response && response.courses) {
+      courses.value = response.courses || []
+    } else {
+      console.error('获取课程列表失败: 响应格式不正确', response)
+      courses.value = []
+    }
+  } catch (error) {
+    console.error('获取课程列表错误:', error)
+    courses.value = []
+  }
+}
+
 // 修改搜索和分类选择方法，重新获取资源
 const handleSearch = () => {
   fetchResources()
@@ -269,7 +290,10 @@ const selectCategory = (categoryId) => {
 }
 
 // 初始加载资源
-fetchResources()
+onMounted(() => {
+  fetchCourses()
+  fetchResources()
+})
 </script>
 
 <style lang="scss" scoped>

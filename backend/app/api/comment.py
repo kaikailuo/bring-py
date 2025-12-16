@@ -10,7 +10,7 @@ from app.models.post import Post
 from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
 from app.schemas.user import ApiResponse
 from app.utils.security import get_current_user
-from app.models.user import User
+from app.models.user import User, UserRole
 
 router = APIRouter()
 
@@ -42,8 +42,15 @@ async def create_comment(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="父评论不存在"
                 )
-        
+
         # 创建评论（忽略comment_data中的post_id，使用URL中的post_id）
+        # 检查是否被禁言
+        if getattr(current_user, 'is_muted', False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您已被禁言，无法发表评论"
+            )
+
         new_comment = Comment(
             post_id=post_id,
             author_id=current_user.id,
@@ -178,8 +185,8 @@ async def delete_comment(
                 detail="评论不存在"
             )
         
-        # 检查权限
-        if comment.author_id != current_user.id:
+        # 检查权限：评论作者、教师或管理员可删除
+        if comment.author_id != current_user.id and current_user.role not in (UserRole.TEACHER, UserRole.ADMIN):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权删除此评论"

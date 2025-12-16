@@ -18,115 +18,12 @@
     </div>
 
     <div class="management-content">
-      <!-- 班级列表 -->
-      <div class="classes-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <el-icon><UserFilled /></el-icon>
-            我的班级
-          </h2>
-          <div class="filter-options">
-            <el-select v-model="statusFilter" placeholder="状态筛选" style="width: 120px">
-              <el-option label="全部" value="all" />
-              <el-option label="进行中" value="active" />
-              <el-option label="已结束" value="ended" />
-            </el-select>
-          </div>
-        </div>
-        
-        <div class="classes-grid">
-          <div class="class-card education-card" v-for="classItem in filteredClasses" :key="classItem.id">
-            <div class="class-header">
-              <div class="class-icon">
-                <el-icon><UserFilled /></el-icon>
-              </div>
-              <div class="class-info">
-                <h3 class="class-name">{{ classItem.name }}</h3>
-                <p class="class-desc">{{ classItem.description }}</p>
-                <div class="class-meta">
-                  <el-tag :type="classItem.status === 'active' ? 'success' : 'warning'">
-                    {{ classItem.status === 'active' ? '进行中' : '已结束' }}
-                  </el-tag>
-                  <span class="class-code">班级代码: {{ classItem.code }}</span>
-                </div>
-              </div>
-              <div class="class-actions">
-                <el-dropdown @command="(command) => handleClassAction(command, classItem)">
-                  <el-button size="small">
-                    操作<el-icon><ArrowDown /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="view">查看详情</el-dropdown-item>
-                      <el-dropdown-item command="edit">编辑班级</el-dropdown-item>
-                      <el-dropdown-item command="students">学生管理</el-dropdown-item>
-                      <el-dropdown-item command="assignments">作业管理</el-dropdown-item>
-                      <el-dropdown-item command="analytics">数据分析</el-dropdown-item>
-                      <el-dropdown-item divided command="archive">归档班级</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </div>
-            
-            <div class="class-stats">
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <div class="stat-icon">
-                    <el-icon><User /></el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ classItem.studentCount }}</div>
-                    <div class="stat-label">学生人数</div>
-                  </div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">
-                    <el-icon><TrendCharts /></el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ classItem.completionRate }}%</div>
-                    <div class="stat-label">完成率</div>
-                  </div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">
-                    <el-icon><Trophy /></el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ classItem.averageScore }}</div>
-                    <div class="stat-label">平均分</div>
-                  </div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-icon">
-                    <el-icon><Clock /></el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ classItem.activeDays }}</div>
-                    <div class="stat-label">活跃天数</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="class-progress">
-              <div class="progress-info">
-                <span class="progress-label">整体进度</span>
-                <span class="progress-percentage">{{ classItem.overallProgress }}%</span>
-              </div>
-              <el-progress :percentage="classItem.overallProgress" :stroke-width="8" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 学生管理 -->
-      <div class="students-section" v-if="selectedClass">
+      <!-- 学生管理（整体列表） -->
+      <div class="students-section">
         <div class="section-header">
           <h2 class="section-title">
             <el-icon><User /></el-icon>
-            {{ selectedClass.name }} - 学生管理
+            学生管理
           </h2>
           <div class="student-actions">
             <el-button @click="showAddStudentDialog = true">
@@ -139,36 +36,26 @@
             </el-button>
           </div>
         </div>
-        
+
         <div class="students-table">
-          <el-table :data="classStudents" style="width: 100%">
-            <el-table-column prop="studentId" label="学号" width="120" />
-            <el-table-column prop="name" label="姓名" width="120" />
+          <el-table :data="students" style="width: 100%">
+            <el-table-column prop="id" label="#" width="80" />
+            <el-table-column prop="username" label="用户名" width="160" />
+            <el-table-column prop="name" label="姓名" width="140" />
             <el-table-column prop="email" label="邮箱" />
-            <el-table-column prop="progress" label="学习进度" width="120">
+            <el-table-column prop="is_active" label="状态" width="100">
               <template #default="scope">
-                <el-progress :percentage="scope.row.progress" :stroke-width="6" />
-              </template>
-            </el-table-column>
-            <el-table-column prop="score" label="平均分" width="100" />
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="scope">
-                <el-tag :type="scope.row.status === 'active' ? 'success' : 'warning'">
-                  {{ scope.row.status === 'active' ? '活跃' : '离线' }}
+                <el-tag :type="scope.row.is_active ? 'success' : 'warning'">
+                  {{ scope.row.is_active ? '活跃' : '停用' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="200">
+            <el-table-column label="操作" width="260">
               <template #default="scope">
-                <el-button size="small" @click="viewStudentDetail(scope.row)">
-                  详情
-                </el-button>
-                <el-button size="small" type="primary" @click="editStudent(scope.row)">
-                  编辑
-                </el-button>
-                <el-button size="small" type="danger" @click="removeStudent(scope.row)">
-                  移除
-                </el-button>
+                <el-button size="small" @click="viewStudentDetail(scope.row)">详情</el-button>
+                <el-button size="small" type="primary" @click="editStudent(scope.row)">编辑</el-button>
+                <el-button size="small" type="danger" @click="removeStudent(scope.row)">移除</el-button>
+                <el-button size="small" type="warning" @click="toggleMute(scope.row)">{{ scope.row.is_muted ? '解禁' : '禁言' }}</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -258,14 +145,19 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, User, Download } from '@element-plus/icons-vue'
 
 // 响应式数据
 const searchKeyword = ref('')
 const statusFilter = ref('all')
+// removed class selection; show global students list
 const selectedClass = ref(null)
 const showCreateClassDialog = ref(false)
 const showAddStudentDialog = ref(false)
+const students = ref([])
 
 const createClassFormRef = ref()
 const addStudentFormRef = ref()
@@ -341,35 +233,9 @@ const classes = ref([
   }
 ])
 
-const classStudents = ref([
-  {
-    id: 1,
-    studentId: '2024001',
-    name: '张同学',
-    email: 'zhang@example.com',
-    progress: 85,
-    score: 88.5,
-    status: 'active'
-  },
-  {
-    id: 2,
-    studentId: '2024002',
-    name: '李同学',
-    email: 'li@example.com',
-    progress: 92,
-    score: 91.2,
-    status: 'active'
-  },
-  {
-    id: 3,
-    studentId: '2024003',
-    name: '王同学',
-    email: 'wang@example.com',
-    progress: 78,
-    score: 82.3,
-    status: 'offline'
-  }
-])
+// students list will be loaded from backend
+// fallback sample (empty)
+students.value = []
 
 // 计算属性
 const filteredClasses = computed(() => {
@@ -407,7 +273,8 @@ const handleClassAction = (command, classItem) => {
       editClass(classItem)
       break
     case 'students':
-      selectedClass.value = classItem
+      // switch to global students view (removed per-requested change)
+      selectedClass.value = null
       break
     case 'assignments':
       manageAssignments(classItem)
@@ -510,30 +377,40 @@ const addStudent = async () => {
   
   try {
     await addStudentFormRef.value.validate()
-    
-    // 模拟添加学生
-    const newStudent = {
-      id: Date.now(),
-      ...addStudentForm.value,
-      progress: 0,
-      score: 0,
-      status: 'active'
+    // 调用后端注册接口创建学生账号（使用默认密码，建议生产环境让学生自行设置或通过重置流程）
+    const payload = {
+      username: addStudentForm.value.studentId || `stu${Date.now()}`,
+      password: 'Password123!',
+      role: 'student',
+      name: addStudentForm.value.name,
+      email: addStudentForm.value.email
     }
-    
-    classStudents.value.push(newStudent)
-    showAddStudentDialog.value = false
-    handleAddStudentClose()
-    
-    ElMessage.success('学生添加成功！')
+
+    const res = await axios.post('http://127.0.0.1:8000/api/auth/register', payload)
+    if (res.data && res.data.code === 200) {
+      ElMessage.success('学生添加成功，已同步数据库')
+      showAddStudentDialog.value = false
+      handleAddStudentClose()
+      // 重新从后端加载学生列表
+      await loadStudents()
+    } else {
+      ElMessage.error(res.data?.message || '添加学生失败')
+    }
   } catch (error) {
     console.error('添加失败:', error)
-    ElMessage.error('添加失败，请检查输入信息')
+    ElMessage.error(error?.response?.data?.message || error?.message || '添加失败，请检查输入信息')
   }
 }
 
+const router = useRouter()
+
 const viewStudentDetail = (student) => {
-  console.log('查看学生详情:', student.name)
-  ElMessage.info('学生详情功能开发中...')
+  if (!student || !student.id) {
+    ElMessage.error('学生信息不完整')
+    return
+  }
+  // 跳转到教师侧的用户个人主页路由，路由已定义为 TeacherUserProfile
+  router.push({ name: 'TeacherUserProfile', params: { userId: student.id } })
 }
 
 const editStudent = (student) => {
@@ -564,8 +441,50 @@ const exportStudents = () => {
   ElMessage.info('导出功能开发中...')
 }
 
+const toggleMute = async (student) => {
+  try {
+    // 调用后端禁言接口（教师/管理员权限）
+    const token = localStorage.getItem('token')
+    if (!token) {
+      ElMessage.error('请先登录')
+      return
+    }
+    const res = await axios.put(`http://127.0.0.1:8000/api/auth/users/${student.id}/mute?mute=${!student.is_muted}`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (res.data && res.data.code === 200) {
+      ElMessage.success('操作成功')
+      student.is_muted = !student.is_muted
+    } else {
+      ElMessage.error(res.data?.message || '操作失败')
+    }
+  } catch (err) {
+    console.error('禁言失败', err)
+    ElMessage.error('禁言操作失败')
+  }
+}
+
+// 从后端加载学生列表
+const loadStudents = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.get('http://127.0.0.1:8000/api/auth/students', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    if (res.data && res.data.code === 200 && res.data.data) {
+      students.value = res.data.data.students || []
+    } else {
+      students.value = []
+    }
+  } catch (err) {
+    console.error('加载学生列表失败', err)
+    students.value = []
+  }
+}
+
 onMounted(() => {
   // 初始化数据
+  loadStudents()
 })
 </script>
 

@@ -39,7 +39,7 @@
               </p>
               <div class="hero-buttons">
                 <el-button type="primary" size="large" @click="$router.push('/login')">
-                  <el-icon><Play /></el-icon>
+                  <el-icon><School /></el-icon>
                   开始学习
                 </el-button>
                 <el-button size="large" @click="scrollToFeatures">
@@ -271,8 +271,21 @@ for i in range(10):
   </div>
 </template>
 
+
 <script setup>
 import { onMounted } from 'vue'
+// 显式导入 Element Plus 图标，避免运行时找不到组件（例如 <Play />）
+import {
+  School,
+  User,
+  InfoFilled,
+  FolderOpened,
+  StarFilled,
+  TrendCharts,
+  ChatDotRound,
+  UserFilled,
+  Setting
+} from '@element-plus/icons-vue'
 
 const scrollToFeatures = () => {
   document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })

@@ -12,7 +12,7 @@ class Comment(Base):
     __tablename__ = "comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, comment="帖子ID")
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, comment="帖子ID")
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="评论者ID")
     content = Column(Text, nullable=False, comment="评论内容")
     parent_id = Column(Integer, ForeignKey("comments.id"), nullable=True, comment="父评论ID（用于回复）")
@@ -22,7 +22,7 @@ class Comment(Base):
     is_deleted = Column(Boolean, default=False, comment="是否已删除")
 
     # 关联关系
-    post = relationship("Post", backref="comments")
+    post = relationship("Post", back_populates="comments")
     author = relationship("User", backref="comments")
     parent = relationship("Comment", remote_side=[id], backref="replies")
 
@@ -38,7 +38,9 @@ class Comment(Base):
             "author": {
                 "id": self.author.id if self.author else None,
                 "name": self.author.name if self.author else "未知用户",
-                "avatar": ""
+                "avatar": self.author.avatar if self.author and self.author.avatar else None,
+                "role": self.author.role.value if self.author and self.author.role else None,
+                "is_muted": self.author.is_muted if self.author else False
             },
             "parent_id": self.parent_id,
             "likes": self.likes,

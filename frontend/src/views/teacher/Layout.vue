@@ -34,7 +34,7 @@
           </el-menu-item>
           <el-menu-item index="/teacher/question-monitor">
             <el-icon><ChatDotRound /></el-icon>
-            <span>问题监控</span>
+            <span>答疑中心</span>
           </el-menu-item>
         </el-menu>
       </div>
@@ -144,7 +144,7 @@
                 <el-icon><ChatDotRound /></el-icon>
                 <span>答疑中心</span>
               </div>
-              <div class="action-item" @click="createAssignment">
+              <div class="action-item" @click="$router.push('/teacher/assignment-management')">
                 <el-icon><EditPen /></el-icon>
                 <span>布置作业</span>
               </div>
@@ -154,12 +154,19 @@
           <!-- 今日待办 -->
           <div class="today-tasks education-card">
             <h3 class="card-title">
-              <el-icon><Calendar /></el-icon>
-              今日待办
+              <div class="title-left">
+                <el-icon><Calendar /></el-icon>
+                今日待办
+              </div>
+
+              <!-- 添加任务按钮 -->
+              <el-icon class="add-task-btn" @click="openAddTaskDialog">
+                <Plus />
+              </el-icon>
             </h3>
             <div class="task-list">
               <div class="task-item" v-for="task in todayTasks" :key="task.id">
-                <div class="task-icon" :class="task.priority">
+                <div class="task-icon" :class="task.priority"@click="goToTaskPage(task)"style="cursor:pointer">
                   <el-icon><component :is="task.icon" /></el-icon>
                 </div>
                 <div class="task-content">
@@ -170,6 +177,10 @@
                   <el-tag size="small" :type="task.status === 'completed' ? 'success' : 'warning'">
                     {{ task.status === 'completed' ? '已完成' : '待处理' }}
                   </el-tag>
+                </div>
+                <!-- ❌ 删除按钮 -->
+                <div class="task-delete" @click="deleteTask(task.id)">
+                  <el-icon><Close /></el-icon>
                 </div>
               </div>
             </div>
@@ -250,6 +261,35 @@
       </aside>
     </div>
   </div>
+  <!-- 添加待办事项弹窗 -->
+<el-dialog
+  v-model="addTaskDialogVisible"
+  title="添加今日待办"
+  width="400px">
+  <el-form :model="newTaskForm" label-width="100px">
+    <el-form-item label="任务类型">
+      <el-select v-model="newTaskForm.type" placeholder="请选择任务类型">
+        <el-option label="批改作业" value="homework" />
+        <el-option label="备课" value="prepare" />
+        <el-option label="答疑" value="qa" />
+        <el-option label="资源整理" value="resource" />
+      </el-select>
+    </el-form-item>
+
+    <el-form-item label="任务时间">
+      <el-time-picker
+        v-model="newTaskForm.time"
+        placeholder="请选择时间"
+        format="HH:mm"
+      />
+    </el-form-item>
+  </el-form>
+
+  <template #footer>
+    <el-button @click="addTaskDialogVisible = false">取消</el-button>
+    <el-button type="primary" @click="submitNewTask">确定</el-button>
+  </template>
+</el-dialog>
 </template>
 
 <script setup>
@@ -257,6 +297,89 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
+
+const goToTaskPage = (task) => {
+  const cfg = taskTypeConfig[ taskTypesReverseMap[task.title] ]
+  if (cfg?.path) router.push(cfg.path)
+}
+const taskTypesReverseMap = {
+  '批改作业': 'homework',
+  '备课任务': 'prepare',
+  '学生答疑': 'qa',
+  '资源整理': 'resource'
+}
+
+const deleteTask = (id) => {
+  todayTasks.value = todayTasks.value.filter(task => task.id !== id)
+  ElMessage.success("已删除任务")
+}
+
+
+// 控制弹窗显示
+const addTaskDialogVisible = ref(false)
+
+// 新任务表单
+const newTaskForm = ref({
+  type: '',
+  time: ''
+})
+
+// 类型映射（不同类型对应不同图标和标题）
+const taskTypeConfig = {
+  homework: { 
+    title: '批改作业', 
+    icon: 'EditPen', 
+    priority: 'high',
+    path: '/teacher/assignment-management'
+  },
+  prepare: { 
+    title: '备课任务', 
+    icon: 'Document', 
+    priority: 'medium',
+    path: '/teacher/class-management'
+  },
+  qa: { 
+    title: '学生答疑', 
+    icon: 'ChatDotRound', 
+    priority: 'high',
+    path: '/teacher/question-monitor'
+  },
+  resource: { 
+    title: '资源整理', 
+    icon: 'FolderOpened', 
+    priority: 'low',
+    path: '/teacher/resource-management'
+  }
+}
+
+// 打开弹窗
+const openAddTaskDialog = () => {
+  newTaskForm.value = { type: '', time: '' }
+  addTaskDialogVisible.value = true
+}
+
+// 提交待办任务
+const submitNewTask = () => {
+  if (!newTaskForm.value.type || !newTaskForm.value.time) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+
+  const cfg = taskTypeConfig[newTaskForm.value.type]
+
+  todayTasks.value.push({
+    id: Date.now(),
+    title: cfg.title,
+    time: newTaskForm.value.time,
+    priority: cfg.priority,
+    icon: cfg.icon,
+    status: 'pending'
+  })
+
+  ElMessage.success('添加成功！')
+  addTaskDialogVisible.value = false
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -273,30 +396,7 @@ const teacherStats = ref({
 })
 
 const todayTasks = ref([
-  {
-    id: 1,
-    title: '批改Python基础作业',
-    time: '09:00',
-    priority: 'high',
-    icon: 'EditPen',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    title: '准备数据结构课程',
-    time: '14:00',
-    priority: 'medium',
-    icon: 'Document',
-    status: 'completed'
-  },
-  {
-    id: 3,
-    title: '回答学生问题',
-    time: '16:00',
-    priority: 'high',
-    icon: 'ChatDotRound',
-    status: 'pending'
-  }
+  
 ])
 
 const studentActivities = ref([
@@ -373,7 +473,7 @@ const handleMenuSelect = (index) => {
 const handleCommand = async (command) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人资料功能开发中...')
+      router.push('/teacher/profile')
       break
     case 'settings':
       ElMessage.info('系统设置功能开发中...')
@@ -395,9 +495,6 @@ const handleCommand = async (command) => {
   }
 }
 
-const createAssignment = () => {
-  ElMessage.info('布置作业功能开发中...')
-}
 
 onMounted(() => {
   // 初始化数据
@@ -651,6 +748,20 @@ onMounted(() => {
 }
 
 /* 今日待办 */
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-task-btn {
+  cursor: pointer;
+  font-size: 20px;
+  color: #409EFF;
+}
+.add-task-btn:hover {
+  color: #66b1ff;
+}
 .task-list {
   display: flex;
   flex-direction: column;
@@ -874,3 +985,4 @@ onMounted(() => {
   }
 }
 </style>
+

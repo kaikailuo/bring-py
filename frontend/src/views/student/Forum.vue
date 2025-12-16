@@ -1,7 +1,16 @@
 <template>
   <div class="forum-page">
     <div class="forum-header">
-      <h1 class="page-title">互动交流</h1>
+      <h1
+        class="page-title"
+        role="button"
+        tabindex="0"
+        style="cursor: pointer;"
+        @click="selectCategory('all')"
+        @keydown.enter="selectCategory('all')"
+      >
+        互动交流
+      </h1>
       <el-button type="primary" @click="showNewPostDialog = true">
         <el-icon><Edit /></el-icon>
         发布新帖
@@ -54,7 +63,7 @@
         </div>
         
         <div class="posts-list">
-          <div class="post-item education-card" v-for="post in filteredPosts" :key="post.id">
+          <div class="post-item education-card" v-for="post in filteredPosts" :key="post.id" @click="onPostAreaClick(post, $event)">
             <div class="post-header">
               <div class="post-title">
                 <h3>{{ post.title }}</h3>
@@ -76,11 +85,31 @@
             
             <div class="post-footer">
               <div class="post-author">
-                <el-avatar :src="post.author.avatar" :size="24">
+                <el-avatar 
+                  :src="post.author?.avatar" 
+                  :size="24"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(post.author)"
+                >
                   <el-icon><User /></el-icon>
                 </el-avatar>
-                <span class="author-name">{{ post.author.name }}</span>
+                <span 
+                  class="author-name"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(post.author)"
+                >
+                  {{ post.author?.name || '未知用户' }}
+                </span>
+                <el-tag v-if="post.author?.role === 'teacher'" size="small" type="info" style="margin-left:8px">教师</el-tag>
                 <span class="post-time">{{ post.time }}</span>
+                <el-button size="small" type="primary" @click.stop="aiSummarize(post)" style="margin-left:8px">一键AI总结</el-button>
+                <!-- 教师管理按钮：仅教师或管理员可见 -->
+                <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin'">
+                  <el-button size="small" type="danger" @click.stop="deletePost(post)" style="margin-left:8px">删除帖子</el-button>
+                  <el-button size="small" type="warning" @click.stop="toggleMuteUser(post.author)" style="margin-left:8px">
+                    {{ post.author?.is_muted ? '解禁用户' : '禁言用户' }}
+                  </el-button>
+                </template>
               </div>
               
               <div class="post-stats">
@@ -147,10 +176,23 @@
     <!-- 评论对话框 -->
     <el-dialog
       v-model="showCommentDialog"
-      :title="`评论 - ${currentPost?.title || ''}`"
+      :title="currentPost?.title || '评论'"
       width="800px"
     >
       <div class="comments-section" v-if="currentPost">
+        <!-- 帖子预览：在评论列表上方展示发帖者和全文（保留换行） -->
+        <div class="dialog-post-preview">
+          <div class="preview-author">
+            <el-avatar :src="currentPost.author?.avatar" :size="36" style="cursor: pointer;" @click.stop="goToUserProfile(currentPost.author)">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="preview-meta">
+              <div class="preview-name">{{ currentPost.author?.name || '未知用户' }} <el-tag v-if="currentPost.author?.role === 'teacher'" size="small" type="info" style="margin-left:6px">教师</el-tag></div>
+              <div class="preview-time">{{ currentPost.time }}</div>
+            </div>
+          </div>
+          <div class="dialog-post-content">{{ currentPost.content }}</div>
+        </div>
         <!-- 评论输入框 -->
         <div class="comment-input-area">
           <el-input
@@ -170,11 +212,23 @@
         <div class="comments-list">
           <div class="comment-item" v-for="comment in comments" :key="comment.id">
             <div class="comment-header">
-              <el-avatar :size="32">
+              <el-avatar 
+                :src="comment.author?.avatar" 
+                :size="32"
+                style="cursor: pointer;"
+                @click="goToUserProfile(comment.author)"
+              >
                 <el-icon><User /></el-icon>
               </el-avatar>
               <div class="comment-author">
-                <span class="author-name">{{ comment.author.name }}</span>
+                <span 
+                  class="author-name"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(comment.author)"
+                >
+                  {{ comment.author?.name || '未知用户' }}
+                </span>
+                <el-tag v-if="comment.author?.role === 'teacher'" size="small" type="info" style="margin-left:6px">教师</el-tag>
                 <span class="comment-time">{{ comment.time }}</span>
               </div>
             </div>
@@ -188,17 +242,46 @@
                 <el-icon><Star /></el-icon>
                 {{ comment.likes }}
               </span>
+              <!-- 删除：教师/管理员/评论作者可见；禁言：仅教师可见 -->
+              <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin' || comment.author?.id === userStore.user?.id">
+                <el-button size="small" type="danger" @click="deleteComment(comment)" style="margin-left:8px">删除</el-button>
+              </template>
+              <template v-if="userStore.userRole === 'teacher'">
+                <el-button size="small" type="warning" @click="toggleMuteUser(comment.author)" style="margin-left:8px">
+                  {{ comment.author?.is_muted ? '解禁' : '禁言' }}
+                </el-button>
+              </template>
             </div>
             
             <!-- 回复列表 -->
             <div class="replies-list" v-if="comment.replies && comment.replies.length > 0">
               <div class="reply-item" v-for="reply in comment.replies" :key="reply.id">
-                <el-avatar :size="24">
+                <el-avatar 
+                  :src="reply.author?.avatar" 
+                  :size="24"
+                  style="cursor: pointer;"
+                  @click="goToUserProfile(reply.author)"
+                >
                   <el-icon><User /></el-icon>
                 </el-avatar>
                 <div class="reply-content">
-                  <span class="reply-author">{{ reply.author.name }}：</span>
+                  <span 
+                    class="reply-author"
+                    style="cursor: pointer;"
+                    @click="goToUserProfile(reply.author)"
+                  >
+                    {{ reply.author?.name || '未知用户' }}：
+                  </span>
+                  <el-tag v-if="reply.author?.role === 'teacher'" size="small" type="info" style="margin-left:6px">教师</el-tag>
                   <span class="reply-text">{{ reply.content }}</span>
+                </div>
+                <div class="reply-actions">
+                  <template v-if="userStore.userRole === 'teacher' || userStore.userRole === 'admin' || reply.author?.id === userStore.user?.id">
+                    <el-button size="small" type="danger" @click="deleteComment(reply)" style="margin-left:8px">删除</el-button>
+                  </template>
+                  <template v-if="userStore.userRole === 'teacher'">
+                    <el-button size="small" type="warning" @click="toggleMuteUser(reply.author)" style="margin-left:8px">{{ reply.author?.is_muted ? '解禁' : '禁言' }}</el-button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -210,13 +293,23 @@
         </div>
       </div>
     </el-dialog>
+    <!-- 共用 AI 聊天/总结组件 -->
+    <AiChatBox v-model="aiChatVisible" :mode="aiChatMode" :post="aiChatPost" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import api from '@/utils/api'
+import AiChatBox from '@/views/components/AiChatBox.vue'
+
+const router = useRouter()
+const route = useRoute()
+const userStore = useUserStore()
 
 // 响应式数据
 const selectedCategory = ref('all')
@@ -255,11 +348,7 @@ const categories = ref([
     icon: 'Document',
     postCount: 45,
     replyCount: 234,
-    latestPost: {
-      title: 'Python列表和元组的区别？',
-      author: '张同学',
-      time: '2小时前'
-    }
+    
   },
   {
     id: 'data-structure',
@@ -268,11 +357,6 @@ const categories = ref([
     icon: 'Box',
     postCount: 32,
     replyCount: 156,
-    latestPost: {
-      title: '如何实现一个简单的栈？',
-      author: '李同学',
-      time: '5小时前'
-    }
   },
   {
     id: 'algorithm',
@@ -281,50 +365,10 @@ const categories = ref([
     icon: 'TrendCharts',
     postCount: 28,
     replyCount: 189,
-    latestPost: {
-      title: '快速排序的实现原理',
-      author: '王同学',
-      time: '1天前'
-    }
   }
 ])
 
-const posts = ref([
-  {
-    id: 1,
-    title: 'Python中如何优雅地处理异常？',
-    content: '在学习Python的过程中，经常遇到各种异常情况，想了解一下有哪些优雅的处理方式...',
-    category: 'python-basic',
-    tags: ['Python', '异常处理', '最佳实践'],
-    author: {
-      name: '张同学',
-      avatar: ''
-    },
-    time: '2小时前',
-    views: 156,
-    replies: 8,
-    likes: 12,
-    isFeatured: false,
-    isPinned: false
-  },
-  {
-    id: 2,
-    title: '数据结构学习心得分享',
-    content: '经过一段时间的学习，总结了一些数据结构的学习心得，希望对大家有帮助...',
-    category: 'data-structure',
-    tags: ['数据结构', '学习心得', '分享'],
-    author: {
-      name: '李同学',
-      avatar: ''
-    },
-    time: '5小时前',
-    views: 234,
-    replies: 15,
-    likes: 28,
-    isFeatured: true,
-    isPinned: false
-  }
-])
+const posts = ref([])
 
 // 计算属性
 const selectedCategoryName = computed(() => {
@@ -358,6 +402,15 @@ const filteredPosts = computed(() => {
 // 方法
 const selectCategory = (categoryId) => {
   selectedCategory.value = categoryId
+}
+
+const onPostAreaClick = (post, e) => {
+  // 如果点击的是已有交互元素（头像、按钮、标签、统计区等）则忽略父容器的打开行为
+  const ignored = e.target.closest('.el-avatar, .el-button, .post-author, .post-stats, .post-tags, .el-tag, .author-name, .reply-item, .reply-actions')
+  if (ignored) return
+
+  // 否则打开评论弹窗（复用已有方法）
+  showComments(post)
 }
 
 const handleNewPostClose = () => {
@@ -413,10 +466,7 @@ const submitNewPost = async () => {
     handleNewPostClose()
 
     // 重新加载帖子列表
-    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
-    if (postsRes.data && postsRes.data.data) {
-      posts.value = postsRes.data.data
-    }
+    await loadPosts()
 
   } catch (error) {
     // 表单验证失败
@@ -472,9 +522,19 @@ const showComments = async (post) => {
   newComment.value = ''
   replyingTo.value = null
   
-  // 加载评论列表
+  // 加载评论列表并更新浏览次数
   try {
     const token = localStorage.getItem('token')
+    
+    // 先获取帖子详情（这会增加浏览次数）
+    const postRes = await axios.get(`http://127.0.0.1:8000/api/posts/${post.id}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
+    if (postRes.data && postRes.data.data) {
+      currentPost.value = postRes.data.data
+    }
+    
+    // 再加载评论列表
     const res = await axios.get(`http://127.0.0.1:8000/api/posts/${post.id}/comments/`, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     })
@@ -526,10 +586,7 @@ const submitComment = async () => {
     await showComments(currentPost.value)
     
     // 刷新帖子列表
-    const postsRes = await axios.get("http://127.0.0.1:8000/api/posts/")
-    if (postsRes.data && postsRes.data.data) {
-      posts.value = postsRes.data.data
-    }
+    await loadPosts()
   } catch (error) {
     console.error('发表评论失败:', error)
     ElMessage.error(error?.response?.data?.detail || '发表评论失败')
@@ -541,7 +598,7 @@ const submitComment = async () => {
 // 回复评论
 const replyToComment = (comment) => {
   replyingTo.value = comment
-  newComment.value = `@${comment.author.name} `
+  newComment.value = `@${comment.author?.name || '未知用户'} `
 }
 
 // 点赞评论
@@ -571,6 +628,68 @@ const likeComment = async (comment) => {
     ElMessage.error('点赞失败')
   }
 }
+
+// 跳转到用户个人主页
+const goToUserProfile = (author) => {
+  if (!author || !author.id) return
+  
+  // 如果查看的是自己的主页，跳转到个人主页
+  if (author.id === userStore.user?.id) {
+    if (userStore.userRole === 'student') {
+      router.push('/student/profile')
+    } else if (userStore.userRole === 'teacher') {
+      router.push('/teacher/profile')
+    }
+    return
+  }
+  
+  // 查看其他用户的主页，根据当前用户角色跳转
+  if (userStore.userRole === 'student') {
+    router.push(`/student/user/${author.id}`)
+  } else if (userStore.userRole === 'teacher') {
+    router.push(`/teacher/user/${author.id}`)
+  } else {
+    // 如果是其他角色或未登录，跳转到学生端
+    router.push(`/student/user/${author.id}`)
+  }
+}
+
+// 加载帖子列表
+const loadPosts = async () => {
+  try {
+    const res = await axios.get("http://127.0.0.1:8000/api/posts/")
+    if (res.data && res.data.code === 200 && res.data.data) {
+      posts.value = res.data.data.map(post => ({
+        ...post,
+        // 确保字段映射正确
+        isFeatured: post.isFeatured !== undefined ? post.isFeatured : post.is_featured,
+        isPinned: post.isPinned !== undefined ? post.isPinned : post.is_pinned,
+        author: post.author || { name: '未知用户', avatar: null, id: null, role: null }
+      }))
+    }
+  } catch (error) {
+    console.error('加载帖子列表失败:', error)
+    posts.value = []
+  }
+}
+
+// 初始化加载帖子
+onMounted(async () => {
+  await loadPosts()
+  // 帖子加载后检查是否需要打开特定帖子的评论（来自教师监控页）
+  const postId = route.query.post_id
+  if (postId && posts.value.length > 0) {
+    const target = posts.value.find(p => String(p.id) === String(postId))
+    if (target) {
+      // 使用 nextTick 确保 DOM 已更新
+      setTimeout(() => {
+        showComments(target)
+        // 清除 query 参数避免刷新时重复打开
+        router.replace({ name: 'StudentForum', query: {} })
+      }, 100)
+    }
+  }
+})
 
 // 收藏/取消收藏
 const toggleFavorite = async (post) => {
@@ -605,6 +724,118 @@ const toggleFavorite = async (post) => {
   } catch (error) {
     console.error('收藏操作失败:', error)
     ElMessage.error(error?.response?.data?.detail || '操作失败')
+  }
+}
+
+// AI 总结触发函数（前端仅发起请求，后端返回占位）
+// 打开 AI 总结弹窗（由 AiChatBox 处理实际的 api 调用）
+const aiSummarize = (post) => {
+  // 打开 AiChatBox 以 summarize 模式并传入当前帖子
+  aiChatVisible.value = true
+  aiChatMode.value = 'summarize'
+  aiChatPost.value = post
+}
+
+// AI 聊天框状态（用于复用组件）
+const aiChatVisible = ref(false)
+const aiChatMode = ref('assistant')
+const aiChatPost = ref(null)
+
+// 教师/管理员：删除帖子
+const deletePost = async (post) => {
+  if (!post || !post.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/posts/${post.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    ElMessage.success('帖子已删除')
+    // 从本地列表移除
+    posts.value = posts.value.filter(p => p.id !== post.id)
+  } catch (err) {
+    console.error('删除帖子失败', err)
+    ElMessage.error(err?.response?.data?.message || '删除帖子失败')
+  }
+}
+
+// 教师/管理员：禁言/解禁用户
+const toggleMuteUser = async (author) => {
+  if (!author || !author.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    const mute = !author.is_muted
+    const res = await axios.put(`http://127.0.0.1:8000/api/auth/users/${author.id}/mute?mute=${mute}`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success(res.data.message || '操作成功')
+      // 更新本地作者状态（界面体现）
+      posts.value = posts.value.map(p => {
+        if (p.author && p.author.id === author.id) {
+          p.author.is_muted = mute
+        }
+        return p
+      })
+      // 如果评论已经加载，也更新评论显示
+      comments.value = comments.value.map(c => {
+        if (c.author && c.author.id === author.id) c.author.is_muted = mute
+        if (c.replies) c.replies = c.replies.map(r => { if (r.author && r.author.id === author.id) r.author.is_muted = mute; return r })
+        return c
+      })
+    } else {
+      ElMessage.error(res.data?.message || '操作失败')
+    }
+  } catch (err) {
+    console.error('禁言操作失败', err)
+    ElMessage.error('禁言操作失败')
+  }
+}
+
+// 删除评论或回复（作者或教师/管理员可用）
+const deleteComment = async (comment) => {
+  if (!comment || !comment.id) return
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
+  }
+
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/comments/${comment.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    ElMessage.success('评论已删除')
+
+    // 如果是顶级评论，则从 comments 列表移除
+    if (!comment.parent_id) {
+      comments.value = comments.value.filter(c => c.id !== comment.id)
+    } else {
+      // 否则在对应父评论的 replies 中移除
+      comments.value = comments.value.map(c => {
+        if (c.replies && c.replies.length) {
+          c.replies = c.replies.filter(r => r.id !== comment.id)
+        }
+        return c
+      })
+    }
+
+    // 刷新帖子列表中的回复计数
+    await loadPosts()
+  } catch (err) {
+    console.error('删除评论失败', err)
+    ElMessage.error(err?.response?.data?.message || '删除评论失败')
   }
 }
 </script>
@@ -956,6 +1187,30 @@ const toggleFavorite = async (post) => {
   text-align: center;
   padding: $spacing-xxl;
   color: $text-light;
+}
+
+/* 弹窗中帖子预览样式（保留换行） */
+.dialog-post-preview {
+  padding: $spacing-lg;
+  background: #f5f5f5;
+  border-radius: $border-radius;
+  margin-bottom: $spacing-lg;
+  box-shadow: $box-shadow;
+}
+.dialog-post-preview .preview-author {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+.dialog-post-preview .preview-meta {
+  display: flex;
+  flex-direction: column;
+}
+.dialog-post-content {
+  white-space: pre-wrap; /* 保留换行 */
+  color: $text-secondary;
+  line-height: 1.6;
 }
 
 .stat-item.favorited {

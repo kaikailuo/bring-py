@@ -27,6 +27,18 @@ class Post(Base):
 
     # 关联关系
     author = relationship("User", backref="posts")
+    comments = relationship(
+        "Comment",
+        back_populates="post",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+    favorites = relationship(
+        "Favorite",
+        back_populates="post",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     def __repr__(self):
         return f"<Post(id={self.id}, title='{self.title}', category='{self.category}')>"
@@ -42,7 +54,9 @@ class Post(Base):
             "author": {
                 "id": self.author.id if self.author else None,
                 "name": self.author.name if self.author else "未知用户",
-                "avatar": ""
+                "avatar": self.author.avatar if self.author and self.author.avatar else None,
+                "role": self.author.role.value if self.author and self.author.role else None,
+                "is_muted": self.author.is_muted if self.author else False
             },
             "time": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else "",
             "views": self.views,

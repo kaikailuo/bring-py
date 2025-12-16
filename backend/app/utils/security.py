@@ -26,7 +26,7 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 if SECRET_KEY == "dev-secret-key":
-    print("⚠️ 警告：当前正在使用开发默认密钥，请勿在生产环境中使用！")
+    print("[WARNING] Using development default secret key - DO NOT USE IN PRODUCTION!")
 # HTTP Bearer认证
 security = HTTPBearer()
 

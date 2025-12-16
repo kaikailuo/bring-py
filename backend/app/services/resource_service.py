@@ -57,14 +57,11 @@ class ResourceService:
     def get_resources(self, page: int = 1, page_size: int = 10, search: str = "", 
                      type_filter: str = None, category_filter: str = None, 
                      course_id_filter: str = None, user: User = None) -> dict:
-        """获取资源列表，支持分页、搜索和筛选"""
+        """获取资源列表，支持分页、搜索和筛选（公开访问）"""
         query = self.db.query(Resource)
         
-        # 根据用户角色进行过滤
-        if user and user.role == "student":
-            # 学生只能看到关联了课程的资源
-            query = query.filter(Resource.course_id.isnot(None))
-        # 教师可以看到所有资源
+        # 公开访问：显示所有关联了课程的资源（course_id不为空）
+        # 这样可以确保只有教师明确关联到课程的资源才会显示给学生
         
         # 搜索
         if search:

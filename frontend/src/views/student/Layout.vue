@@ -266,39 +266,8 @@
       </aside>
     </div>
 
-    <!-- AI助手对话框 -->
-    <el-dialog
-      v-model="showAIAssistant"
-      title="AI编程助手"
-      width="800px"
-      :before-close="handleAIAssistantClose"
-    >
-      <div class="ai-assistant-dialog">
-        <div class="chat-messages">
-          <div class="message ai-message">
-            <div class="message-avatar">
-              <el-icon><StarFilled /></el-icon>
-            </div>
-            <div class="message-content">
-              <div class="message-text">
-                你好！我是你的AI编程助手，有什么Python编程问题需要帮助吗？
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="chat-input">
-          <el-input
-            v-model="aiMessage"
-            placeholder="输入你的编程问题..."
-            type="textarea"
-            :rows="3"
-          />
-          <el-button type="primary" @click="sendAIMessage" :disabled="!aiMessage.trim()">
-            发送
-          </el-button>
-        </div>
-      </div>
-    </el-dialog>
+    <!-- AI助手对话框（复用 AiChatBox 组件） -->
+    <AiChatBox v-model="showAIAssistant" mode="assistant" />
   </div>
 </template>
 
@@ -307,6 +276,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AiChatBox from '@/views/components/AiChatBox.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -327,7 +297,7 @@ const handleMenuSelect = (index) => {
 const handleCommand = async (command) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人资料功能开发中...')
+      router.push('/student/profile')
       break
     case 'settings':
       ElMessage.info('系统设置功能开发中...')

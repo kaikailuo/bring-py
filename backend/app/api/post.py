@@ -9,7 +9,7 @@ from app.models.post import Post
 from app.schemas.post import PostCreate, PostUpdate, PostResponse
 from app.schemas.user import ApiResponse
 from app.utils.security import get_current_user
-from app.models.user import User
+from app.models.user import User, UserRole
 
 router = APIRouter()
 
@@ -24,6 +24,12 @@ async def create_post(
     创建新帖子
     """
     try:
+        # 检查是否被禁言
+        if getattr(current_user, 'is_muted', False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="您已被禁言，无法发帖"
+            )
         # 创建帖子对象
         new_post = Post(
             title=post_data.title,
@@ -187,8 +193,8 @@ async def delete_post(
                 detail="帖子不存在"
             )
         
-        # 检查权限：只能删除自己的帖子
-        if post.author_id != current_user.id:
+        # 检查权限：帖子作者、教师或管理员可删除
+        if post.author_id != current_user.id and current_user.role not in (UserRole.TEACHER, UserRole.ADMIN):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权删除此帖子"
