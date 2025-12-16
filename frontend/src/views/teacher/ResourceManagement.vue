@@ -39,10 +39,13 @@
         </select>
       </div>
 
-      <!-- 上传按钮 -->
-      <button class="primary-btn upload-btn" @click="openUploadModal">
-        <i class="icon-upload"></i> 上传新资源
-      </button>
+      <!-- 操作按钮组 -->
+      <div class="action-buttons">
+        <el-button @click="openCreateCourse">添加课程</el-button>
+        <button class="primary-btn upload-btn" @click="openUploadModal">
+          <i class="icon-upload"></i> 上传新资源
+        </button>
+      </div>
     </div>
 
     <!-- 资源列表区域 -->
@@ -154,11 +157,12 @@ width="500px"
             <el-form-item label="课程关联">
               <el-select v-model="resourceMeta.courseId" placeholder="选择课程（可选）" clearable>
                 <el-option label="不关联课程" value="" />
-                <el-option label="全部" value="all" />
-                <el-option label="第一课" value="lesson_01" />
-                <el-option label="第二课" value="101" />
-                <el-option label="线性代数" value="102" />
-                <el-option label="大学物理实验" value="103" />
+                <el-option 
+                  v-for="course in courses" 
+                  :key="course.id" 
+                  :label="course.name" 
+                  :value="course.id" 
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="资源描述">
@@ -199,12 +203,39 @@ width="500px"
         <button class="danger-btn" @click="deleteResource">确认删除</button>
       </template>
     </el-dialog>
+
+    <!-- 添加课程对话框 -->
+    <el-dialog 
+      title="添加课程" 
+      v-model="createCourseVisible" 
+      width="40%"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="courseForm" label-width="100px">
+        <el-form-item label="课程 id">
+          <el-input 
+            v-model="courseForm.id" 
+            placeholder="例如 lesson_05"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="课程名称">
+          <el-input 
+            v-model="courseForm.name" 
+            placeholder="例如 课程五"
+          ></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <button class="cancel-btn" @click="createCourseVisible = false">取消</button>
+        <button class="primary-btn" @click="createCourse">创建</button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 // 将import语句移到script标签顶部
-import { resourceAPI } from '@/utils/api'
+import { resourceAPI, problemsAPI } from '@/utils/api'
 
 export default {
   
@@ -218,6 +249,9 @@ export default {
       sortBy: 'date-desc',
       currentPage: 1,
       pageSize: 10,
+
+      // 课程列表
+      courses: [],
 
       // 上传相关状态
       uploadModalVisible: false,
@@ -235,12 +269,20 @@ export default {
       // 删除相关状态
       deleteConfirmVisible: false,
       currentResource: null,
-      totalPages: 0
+      totalPages: 0,
+
+      // 添加课程相关状态
+      createCourseVisible: false,
+      courseForm: {
+        id: '',
+        name: ''
+      }
     };
   },
   created() {
-    // 组件创建时获取资源列表
+    // 组件创建时获取资源列表和课程列表
     this.fetchResources()
+    this.fetchCourses()
   },
   computed: {
     // 筛选后的资源列表（保留原有的前端筛选逻辑）
@@ -329,6 +371,23 @@ export default {
       }
     },
     
+    // 获取课程列表
+    async fetchCourses() {
+      try {
+        const response = await problemsAPI.getCourses()
+        // 后端返回格式为 {"courses": [...]}
+        if (response && response.courses) {
+          this.courses = response.courses || []
+        } else {
+          console.error('获取课程列表失败: 响应格式不正确', response)
+          this.courses = []
+        }
+      } catch (error) {
+        console.error('获取课程列表错误:', error)
+        this.courses = []
+      }
+    },
+    
     // 处理搜索和筛选变化
     handleSearch() {
       this.currentPage = 1
@@ -406,15 +465,9 @@ export default {
     // 课程关联信息
     if (this.resourceMeta.courseId) {
       formData.append('course_id', this.resourceMeta.courseId)
-      // 根据课程ID自动设置课程名称
-      const courseMap = {
-        'all': '全部',
-        'lesson1': '第一课',
-        '101': '高等数学（上）',
-        '102': '线性代数',
-        '103': '大学物理实验'
-      }
-      const courseName = courseMap[this.resourceMeta.courseId] || this.resourceMeta.courseName
+      // 根据课程ID从courses数组中查找课程名称
+      const course = this.courses.find(c => c.id === this.resourceMeta.courseId)
+      const courseName = course ? course.name : this.resourceMeta.courseName
       if (courseName) {
         formData.append('course_name', courseName)
       }
@@ -534,6 +587,34 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+
+    // 打开创建课程对话框
+    openCreateCourse() {
+      this.courseForm = { id: '', name: '' }
+      this.createCourseVisible = true
+    },
+
+    // 创建课程
+    async createCourse() {
+      if (!this.courseForm.id.trim() || !this.courseForm.name.trim()) {
+        this.$message.warning('请填写课程 id 和名称')
+        return
+      }
+      try {
+        await problemsAPI.createCourse({ 
+          id: this.courseForm.id.trim(), 
+          name: this.courseForm.name.trim() 
+        })
+        this.$message.success('课程已创建')
+        this.createCourseVisible = false
+        // 刷新课程列表
+        await this.fetchCourses()
+      } catch (error) {
+        console.error('创建课程错误:', error)
+        const errorMessage = error.message || '创建课程失败'
+        this.$message.error(errorMessage)
+      }
     }
   }
 }
@@ -602,6 +683,12 @@ export default {
     }
   }
   
+  .action-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
   .upload-btn {
     padding: 8px 20px;
     background: #67c23a;
